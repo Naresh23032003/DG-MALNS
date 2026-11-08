@@ -1,0 +1,7 @@
+Highlights
+
+* Parallel search workers offer capacity-stratified moves that are resolved jointly
+* Joint resolution beats rollback and lock commit on 56 to 58 of 60 test instances
+* Exact barrier wins single epochs, yet greedy efficiency rule ends slightly better
+* Beats a time-matched exact solver on all 80 instances with 20 or 40 route candidates
+* Shadow prices and dynamic quotas add no measurable gain to the method

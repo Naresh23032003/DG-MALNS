@@ -1,0 +1,16 @@
+\begin{table}[!htb]
+\centering
+\caption{Parameter sensitivity on the validation seeds 1--10 (Medium, 3 runs each, 2 s CPU budget, one factor at a time around the default in bold): level: mean gap (\%) (Holm-adjusted exact Wilcoxon $p$ against the default over 30 paired runs). A level would replace the default only if it were better with $p_{\text{Holm}} < 0.05$; no level qualified.}
+\label{tab:tuning}
+\footnotesize
+\begin{tabular}{@{}lp{0.72\textwidth}@{}}
+\toprule
+Factor & Levels \\
+\midrule
+Chained steps $M$ & 1: 1.938 (0.0832); 2: 1.910 (0.1579); \textbf{5: 1.851}; 10: 1.799 (0.0832) \\
+Destroy fraction range & [0.08, 0.16]: 1.818 (0.4733); \textbf{[0.16, 0.3]: 1.851}; [0.3, 0.45]: 1.908 (0.4733) \\
+Regret-2 noise $\sigma$ & 0.0: 1.846 (1.0000); 1.0: 1.863 (1.0000); \textbf{2.0: 1.851}; 4.0: 1.793 (0.2197) \\
+Borrower penalty $\rho_0$ & 0.0: 1.874 (1.0000); 0.15: 1.872 (1.0000); \textbf{0.35: 1.851}; 0.7: 1.813 (1.0000) \\
+\bottomrule
+\end{tabular}
+\end{table}

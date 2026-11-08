@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# LaTeX auxiliary files (keep paper1_cor.pdf and .tex)
+*.aux
+*.log
+*.out
+*.abs
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# OS / Editor
+.DS_Store
+__MACOSX/
+.vscode/
+.idea/

@@ -1,0 +1,14 @@
+\begin{table}[!htb]
+\centering
+\caption{Measured wall clock (s) of PC-MALNS [MC-CRIP] for a fixed number of epochs (Large: 40, XXL: 20; seeds 101--103), serial in one process and on $W$ worker processes (speedup against serial). Every run gives the same final objective as the serial run. Jobs were run one at a time on an Apple M4 (4 performance and 6 efficiency cores).}
+\label{tab:scaling}
+\footnotesize
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Scale & Serial & $W = 1$ & $W = 2$ & $W = 4$ & $W = 8$ \\
+\midrule
+Large & 3.12 & 3.16 (0.99$\times$) & 1.83 (1.72$\times$) & 1.32 (2.37$\times$) & 1.13 (2.76$\times$) \\
+XXL & 5.64 & 5.59 (1.01$\times$) & 3.62 (1.56$\times$) & 2.59 (2.18$\times$) & 1.97 (2.86$\times$) \\
+\bottomrule
+\end{tabular}
+\end{table}

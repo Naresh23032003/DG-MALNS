@@ -1,0 +1,20 @@
+\begin{table}[!htb]
+\centering
+\caption{Counterfactual barrier analysis. On every conflict epoch of the PC-MALNS [MC-CRIP] runs of Table~\ref{tab:commit} (409, 1,109 and 437 epochs, 1,955 in total), every rule is applied to the same portfolios. Share: total cost reduction of the rule as a percentage of the MC-CRIP reduction; Strict: percentage of these epochs in which MC-CRIP is strictly better. Counterfactual evaluations use their own random stream and are not charged to any clock.}
+\label{tab:counterfactual}
+\footnotesize
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+ & \multicolumn{2}{c}{LP-Round start} & \multicolumn{2}{c}{Direct start} & \multicolumn{2}{c}{RPA-SH-Sync} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
+Rule & Share & Strict & Share & Strict & Share & Strict \\
+\midrule
+BCRM-Greedy & 79.6 & 58.2 & 95.5 & 54.3 & 76.9 & 61.3 \\
+Greedy-Efficiency & 84.0 & 51.3 & 84.1 & 47.6 & 83.2 & 52.9 \\
+Greedy-Gain & 83.9 & 43.0 & 93.1 & 37.8 & 84.3 & 39.4 \\
+Opt-SeqLock & 57.4 & 100.0 & 85.9 & 100.0 & 60.4 & 99.8 \\
+Opt-Rollback & 20.6 & 100.0 & 10.6 & 100.0 & 19.4 & 100.0 \\
+Static-Quota & 6.3 & 100.0 & 74.5 & 100.0 & 5.8 & 100.0 \\
+\bottomrule
+\end{tabular}
+\end{table}

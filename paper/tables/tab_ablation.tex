@@ -1,0 +1,19 @@
+\begin{table}[!htb]
+\centering
+\caption{Price and quota ablation of PC-MALNS [MC-CRIP] (Large, $\eta = 1.25$, 10 test instances, 5 runs each): mean gap (\%), difference default $-$ variant, W/T/L of the default, exact Wilcoxon $p$ Holm-adjusted over the six variants.}
+\label{tab:ablation}
+\footnotesize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Variant & Gap & Diff & W/T/L & $p_{\text{Holm}}$ \\
+\midrule
+No prices, static quota (default) & 1.656 & & & \\
+Heuristic prices, dynamic quota & 1.629 & +0.028 & 4/0/6 & 1.0000 \\
+Heuristic prices, static quota & 1.632 & +0.024 & 4/0/6 & 1.0000 \\
+MC-CRIP LP duals, dynamic quota & 1.627 & +0.029 & 4/0/6 & 1.0000 \\
+MC-CRIP LP duals, static quota & 1.635 & +0.021 & 4/0/6 & 1.0000 \\
+No prices, demand quota & 1.634 & +0.022 & 4/0/6 & 1.0000 \\
+No prices, dynamic quota & 1.662 & $-$0.006 & 7/1/2 & 1.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}

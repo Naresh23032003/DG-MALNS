@@ -1,0 +1,28 @@
+\begin{table}[!htb]
+\centering
+\caption{Main benchmark, pooled over the 60 test instances: PC-MALNS [MC-CRIP] (mean gap 1.514\%) against every method. Diff $=$ PC-MALNS [MC-CRIP] $-$ method in percentage points (negative favours PC-MALNS [MC-CRIP]) with paired-$t$ and bootstrap 95\% confidence intervals; W/T/L counts the instances on which PC-MALNS [MC-CRIP] is better, equal or worse; $p$: exact two-sided Wilcoxon signed-rank test, Holm-adjusted over the 16 comparisons.}
+\label{tab:main_tests}
+\footnotesize
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Method & Gap & Diff & $t$ 95\% CI & Bootstrap 95\% CI & W/T/L & $p_{\text{Holm}}$ \\
+\midrule
+LP-Round & 2.896 & $-$1.382 & [$-$1.578, $-$1.187] & [$-$1.574, $-$1.200] & 60/0/0 & $<$0.0001 \\
+PC-MALNS [BCRM-Greedy] & 1.526 & $-$0.012 & [$-$0.026, +0.001] & [$-$0.025, +0.001] & 40/0/20 & 0.0336 \\
+Greedy-Efficiency-Portfolio & 1.487 & +0.026 & [+0.010, +0.043] & [+0.009, +0.041] & 16/0/44 & $<$0.0001 \\
+Greedy-Gain-Portfolio & 1.550 & $-$0.036 & [$-$0.057, $-$0.015] & [$-$0.057, $-$0.016] & 46/0/14 & 0.0012 \\
+Opt-Rollback-Portfolio & 1.686 & $-$0.172 & [$-$0.200, $-$0.144] & [$-$0.201, $-$0.145] & 57/0/3 & $<$0.0001 \\
+Opt-SeqLock-Portfolio & 1.645 & $-$0.131 & [$-$0.156, $-$0.107] & [$-$0.154, $-$0.107] & 57/0/3 & $<$0.0001 \\
+Opt-Rollback & 1.683 & $-$0.169 & [$-$0.200, $-$0.139] & [$-$0.199, $-$0.140] & 58/0/2 & $<$0.0001 \\
+Opt-SeqLock & 1.659 & $-$0.145 & [$-$0.172, $-$0.118] & [$-$0.172, $-$0.119] & 56/0/4 & $<$0.0001 \\
+Static-Quota & 2.443 & $-$0.929 & [$-$1.050, $-$0.808] & [$-$1.046, $-$0.814] & 60/0/0 & $<$0.0001 \\
+Demand-Quota & 2.244 & $-$0.730 & [$-$0.826, $-$0.634] & [$-$0.823, $-$0.639] & 60/0/0 & $<$0.0001 \\
+HiGHS (1T, wall-matched) & 2.084 & $-$0.570 & [$-$0.887, $-$0.254] & [$-$0.871, $-$0.261] & 44/0/16 & 0.0089 \\
+HiGHS (4T, wall-matched) & 1.956 & $-$0.443 & [$-$0.760, $-$0.125] & [$-$0.746, $-$0.133] & 41/0/19 & 0.0336 \\
+HiGHS (1T, CPU-matched) & 0.512 & +1.001 & [+0.907, +1.096] & [+0.912, +1.096] & 0/0/60 & $<$0.0001 \\
+HiGHS (5s) & 0.951 & +0.562 & [+0.304, +0.820] & [+0.309, +0.810] & 20/0/40 & $<$0.0001 \\
+HiGHS (60s) & 0.348 & +1.166 & [+1.036, +1.295] & [+1.043, +1.293] & 0/0/60 & $<$0.0001 \\
+HiGHS (600s) & 0.398 & +1.792 & [+1.617, +1.966] & [+1.638, +1.954] & 0/0/20 & $<$0.0001 \\
+\bottomrule
+\end{tabular}
+\end{table}
