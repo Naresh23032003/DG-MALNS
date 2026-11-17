@@ -72,3 +72,19 @@ Before every unit the power source is checked. On battery power the run pauses u
 
 - Phases 1 and 2: `results/raw/wall_<job>.csv`, `wall_reference.csv` and `wall_calibration.csv`, with logs in `results/logs/uniform_<job>.log`.
 - Phase 3: `results/raw/work_prices_fresh.csv` and `work_rho0.csv`.
+
+## Addendum, 2026-11-17: HiGHS watchdog
+
+**What happened.** Phase 1 (`main`, 60 instances) and the first 22 instances of `rich` finished without incident. Every calibration gave the same objective, no drift flag was raised, and the run never paused for battery power. On `MCA_SC_K16_N960_P20_eta1.25_s103`, the 1-thread 300 s reference run of HiGHS 1.16.0 ignored its time limit. After 10.9 h it was still in `presolve::HPresolve::strengthenInequalities`, inside nested RINS sub-MIPs (from a stack sample). The queue was stopped at 17:30 IST. A rerun of that unit hung again, so the hang is deterministic. The 492 HiGHS runs completed before the hang all stopped within 0.14 s of their limits.
+
+**Change.**
+- `src/highs_runner.py` now streams every HiGHS incumbent to a file, and kills a solve once it runs 30 s + 10% of its limit past that limit.
+- A killed run records:
+  - status `killed (watchdog)` and `highs_killed = True`;
+  - the last incumbent found within the time limit, taken from the streamed trace;
+  - no dual bound;
+  - `highs_actual_time_s` equal to the time limit.
+- For such an instance, the lower bound uses the LP bound and the other available HiGHS dual bounds (`lower_bounds.csv` records the source).
+- The column `highs_killed` was added to `wall_rich.csv` and `wall_reference.csv`. It is empty for earlier rows, all of which finished within their limits.
+
+Nothing else changes. Finished instances are kept, and the interrupted instance s103 is rerun from the start, as the resumption rule above provides.
