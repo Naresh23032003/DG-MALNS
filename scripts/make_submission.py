@@ -43,8 +43,6 @@ def main():
     shutil.copy(PAPER / "generated_macros.tex", OUT / "generated_macros.tex")
     for f in TEMPLATE:
         shutil.copy(PAPER / f, OUT / f)
-    for f in ["highlights.docx", "highlights.pdf"]:
-        shutil.copy(PAPER / f, OUT / f)
 
     for _ in range(3):
         r = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", MAIN],
@@ -61,8 +59,10 @@ def main():
         if p.exists():
             p.unlink()
     with zipfile.ZipFile(PAPER / "submission.zip", "w", zipfile.ZIP_DEFLATED) as z:
+        # LaTeX source only: the compiled PDF and the highlights are uploaded separately.
         for p in sorted(OUT.iterdir()):
-            z.write(p, p.name)
+            if p.suffix != ".pdf" or p.name.startswith("fig_"):
+                z.write(p, p.name)
     print(f"{len(tables)} tables, {len(figs)} figures -> {OUT} and paper/submission.zip")
 
 
