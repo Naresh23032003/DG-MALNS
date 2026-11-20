@@ -26,3 +26,6 @@ __MACOSX/
 .idea/
 paper/submission/
 paper/submission.zip
+paper/paper1_cor.tex
+paper/paper1_cor.pdf
+scripts/make_submission.py

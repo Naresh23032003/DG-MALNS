@@ -5,7 +5,7 @@
 [![Tests](https://img.shields.io/badge/Pytest-48%2F48_Passed-brightgreen.svg)](tests/)
 [![Feasibility](https://img.shields.io/badge/Feasibility_Tolerance-1e--6_Verified-brightgreen.svg)](src/feasibility.py)
 
-Source code, instance generators, raw results, study plans and reproduction scripts for the manuscript
+Source code, instance generators, raw results, study plans and reproduction scripts for the manuscript (the manuscript itself is under review and not included)
 
 > **Portfolio Conflict Resolution in Concurrent Multi-Agent Large Neighborhood Search for Coupled Multiple-Choice Allocation**
 > Naresh R, Birla Institute of Technology and Science, Pilani (BITS Pilani). ORCID [0009-0000-0735-2066](https://orcid.org/0009-0000-0735-2066).
@@ -52,12 +52,11 @@ scripts/
   generate_paper_tables.py  LaTeX tables -> paper/tables/
   generate_paper_macros.py  every number in the text -> paper/generated_macros.tex
   make_figures.py         figures -> results/figures/
-  make_submission.py      flat LaTeX package for Editorial Manager -> paper/submission.zip
 tests/                    48 unit tests (properties, worst-case constructions, generators, pool, logging)
 data/mmkp/                MMKP instances and best-known-solution certificates
 results/raw/              all raw CSVs (see results/raw/README.md)
 results/*_plan.md         study plans: validation, prices, wall-clock rerun (with addenda)
-results/tables/, results/figures/, paper/
+results/tables/, results/figures/, paper/ (generated tables, macros, highlights)
 EXPERIMENT_REPORT.md      protocols, run conditions and where every result is
 ```
 
@@ -74,8 +73,6 @@ python scripts/run_wallclock_uniform.py main   # and: rich, rich_rerun, sweep, p
 python scripts/build_lower_bounds.py && python scripts/analyze_revision3.py \
   && python scripts/generate_paper_tables.py && python scripts/generate_paper_macros.py \
   && python scripts/make_figures.py
-cd paper && pdflatex paper1_cor.tex && pdflatex paper1_cor.tex
-python scripts/make_submission.py        # flat, self-compiling upload package
 ```
 
 Work-protocol results are deterministic and repeat bit for bit on any machine. Wall-clock results depend on the machine; ours were measured on an Apple MacBook Air M4 (4 performance and 6 efficiency cores, 16 GB, no fan). Every run is checked for feasibility to `1e-6`.
