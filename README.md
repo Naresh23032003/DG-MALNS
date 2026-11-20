@@ -52,6 +52,7 @@ scripts/
   generate_paper_tables.py  LaTeX tables -> paper/tables/
   generate_paper_macros.py  every number in the text -> paper/generated_macros.tex
   make_figures.py         figures -> results/figures/
+  make_submission.py      flat LaTeX package for Editorial Manager -> paper/submission.zip
 tests/                    48 unit tests (properties, worst-case constructions, generators, pool, logging)
 data/mmkp/                MMKP instances and best-known-solution certificates
 results/raw/              all raw CSVs (see results/raw/README.md)
@@ -74,6 +75,7 @@ python scripts/build_lower_bounds.py && python scripts/analyze_revision3.py \
   && python scripts/generate_paper_tables.py && python scripts/generate_paper_macros.py \
   && python scripts/make_figures.py
 cd paper && pdflatex paper1_cor.tex && pdflatex paper1_cor.tex
+python scripts/make_submission.py        # flat, self-compiling upload package
 ```
 
 Work-protocol results are deterministic and repeat bit for bit on any machine. Wall-clock results depend on the machine; ours were measured on an Apple MacBook Air M4 (4 performance and 6 efficiency cores, 16 GB, no fan). Every run is checked for feasibility to `1e-6`.

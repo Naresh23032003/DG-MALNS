@@ -42,8 +42,14 @@ def wtl(r):
     return f"{r['wins']}/{r['ties']}/{r['losses']}"
 
 
+# Appendix tables have no text to float around; pin them where they are input.
+APPENDIX = {"tab_barrier", "tab_cfall", "tab_slack", "tab_dynamics", "tab_lb", "tab_tuning", "tab_scaling"}
+
+
 def table(name, caption, label, colspec, head, rows, size=r"\footnotesize"):
-    body = (r"\begin{table}[!htb]" "\n" r"\centering" "\n" r"\caption{" + caption + "}\n"
+    # cas-sc reads table placement only from its pos= key; a bare [!htb] is ignored.
+    pos = "H" if name in APPENDIX else "!htb"
+    body = (r"\begin{table}[pos=" + pos + "]" "\n" r"\centering" "\n" r"\caption{" + caption + "}\n"
             r"\label{" + label + "}\n" + size + "\n" r"\begin{tabular}{" + colspec + "}\n" r"\toprule" "\n"
             + head + "\n" r"\midrule" "\n" + "\n".join(rows) + "\n" r"\bottomrule" "\n" r"\end{tabular}" "\n"
             r"\end{table}" "\n")

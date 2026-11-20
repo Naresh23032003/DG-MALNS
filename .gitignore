@@ -24,3 +24,5 @@ venv/
 __MACOSX/
 .vscode/
 .idea/
+paper/submission/
+paper/submission.zip

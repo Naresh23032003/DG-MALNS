@@ -8,12 +8,14 @@
 \usepackage{graphicx}
 \usepackage{enumitem}
 \usepackage{float}
+\usepackage[section]{placeins}
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
 \floatstyle{boxed}\restylefloat{algorithm}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,calc}
 \usepackage{hyperref}
+\hypersetup{hypertexnames=false}
 
 % cas-sc parses the figure option itself and never passes [H] to float.sty;
 % hand the placement option to \@float directly so [H] works, keeping cas caption style.
@@ -67,7 +69,7 @@ When several large neighborhood search (LNS) agents improve a block-angular allo
 \end{abstract}
 
 \begin{keywords}
-Large neighborhood search \sep Parallel metaheuristics \sep Multiple-choice knapsack \sep Conflict resolution \sep Matheuristics \sep Block-angular integer programming
+Large neighborhood search \sep Parallel metaheuristics \sep Multiple-choice knapsack \sep Conflict resolution \sep Matheuristics \sep Block-angular integer\newline programming
 \end{keywords}
 
 \maketitle
@@ -105,7 +107,7 @@ Section~\ref{sec:literature} positions the work, Section~\ref{sec:method} states
 
 Table~\ref{tab:literature} positions \pcm{} relative to the closest studies.
 
-\begin{table}[!htb]
+\begin{table}[pos=!htb]
 \centering
 \caption{Positioning relative to related work. CO: combinatorial optimization; DCOP: distributed constraint optimization problem; MILP: mixed-integer linear program; PDPTW: pickup and delivery problem with time windows.}
 \label{tab:literature}
@@ -140,7 +142,7 @@ There are $K$ agents $k \in \mathbf{K} = \{1,\dots,K\}$. Agent $k$ has the reque
 \end{align}
 where $D_k \in \mathbb{R}_+^{m \times N_{\text{agent}}J}$ has the columns $D_{k,i,j} = (D_{r,k,i,j})_r$, $d \in \mathbb{R}_+^m$ are the shared capacities and $b_k$ the local capacities of agent $k$. Problem \eqref{eq:obj}--\eqref{eq:local} is a block-angular MMKP. It arises, for example, as the restricted master problem of a decomposition in which every agent has already generated its alternatives; in this paper the patterns are synthetic random data (Section~\ref{sec:design}), and no routing, sequencing or time-window structure is modelled. Table~\ref{tab:notation} lists the notation.
 
-\begin{table}[!htb]
+\begin{table}[pos=!htb]
 \centering
 \caption{Notation.}
 \label{tab:notation}
@@ -304,7 +306,7 @@ Proposition~\ref{prop:ratios} gives lower bounds on the worst-case ratios; we do
 
 \paragraph{Methods.} Table~\ref{tab:methods} lists the methods. All LNS methods share the agent code, the operators ($M = 5$, destroy $16\%$ to $30\%$, Regret-2 with noise $\sigma = 2.0$ and $2.7$ in a best-of-two repair), the random stream of agent $k$ in epoch $t$ and run $\iota \in \{0,\dots,4\}$, and the \texttt{LP-Round} start. They run on a persistent pool of $W = 4$ worker processes; process $w$ owns the agents $k$ with $k \bmod W = w$, keeps their incumbents and portfolios, and exchanges only the per-level cost and usage changes with the coordinator, so the trajectory of a run does not depend on $W$.
 
-\begin{table}[!htb]
+\begin{table}[pos=!htb]
 \centering
 \caption{Compared methods. All LNS methods share agents, operators, random streams and start; they differ in the candidates per agent and the commit rule.}
 \label{tab:methods}
@@ -484,6 +486,7 @@ Table~\ref{tab:mmkp} reports the \MmkpN{} MMKP instances with a feasible start. 
 
 \textit{Parameters and parallel scaling.} The operator parameters were fixed in the preliminary version of this study by a one-factor-at-a-time sensitivity analysis on separate tuning instances (Appendix, Table~\ref{tab:tuning}); no tested value was significantly better than the default. In the same version, four processes ran a fixed number of epochs $2.2$ to $2.4$ times as fast as one process, with identical results (Appendix, Table~\ref{tab:scaling}). Both analyses used \pmc{} and the earlier wall-clock setup and were not repeated for this version; the work protocol makes the results of this paper independent of the speedup.
 
+\FloatBarrier
 \subsection{Discussion}
 \label{sec:discussion}
 The results support four conclusions, each within the scope of the experiments.
@@ -517,6 +520,7 @@ The author declares that they have no known competing financial interests or per
 \section*{Data and code availability}
 The source code, the MCA-SC and MCA-SC-Pair instance generators, the MMKP conversion, all raw result files, the study plans, the unit tests and the scripts that generate every table, figure and number of this paper are publicly available at \url{https://github.com/Naresh23032003/PC-MALNS}.
 
+\FloatBarrier
 \appendix
 \section{Implementation details}
 \label{app:details}
@@ -534,6 +538,8 @@ All details are implemented in the public repository, in the modules \texttt{ope
 
 \section{Further tables, lower bounds and results of the preliminary version}
 \label{app:extra}
+\setcounter{table}{0}
+\renewcommand{\thetable}{\thesection.\arabic{table}}
 Table~\ref{tab:lb} lists the source of the lower bound of every test instance. Tables~\ref{tab:tuning} and~\ref{tab:scaling} report the parameter sensitivity and the parallel scaling of the preliminary version of this study, which used \pmc{} as the barrier and an earlier wall-clock setup with HiGHS 1.8.0; they were not repeated.
 
 Tables~\ref{tab:barrier}, \ref{tab:cfall}, \ref{tab:slack} and~\ref{tab:dynamics} give the details of Sections~\ref{sec:main}, \ref{sec:commit} and~\ref{sec:ablation}.
@@ -546,6 +552,7 @@ Tables~\ref{tab:barrier}, \ref{tab:cfall}, \ref{tab:slack} and~\ref{tab:dynamics
 \input{tables/tab_tuning.tex}
 \input{tables/tab_scaling.tex}
 
+\FloatBarrier
 \begin{thebibliography}{50}
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 \providecommand{\url}[1]{\texttt{#1}}

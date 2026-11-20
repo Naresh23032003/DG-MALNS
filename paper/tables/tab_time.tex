@@ -1,4 +1,4 @@
-\begin{table}[!htb]
+\begin{table}[pos=!htb]
 \centering
 \caption{Time to target and primal integral (wall-clock protocol, medians over 10 instances). Budget: wall clock of a PC-MALNS [Greedy-Efficiency] run; HiGHS: time the one-thread HiGHS reference run needs to reach the mean PC-MALNS [Greedy-Efficiency] objective of the instance; Ratio: median of HiGHS time over budget (above 1: HiGHS needs longer); CPU ratio: median of HiGHS time over the CPU time of the PC-MALNS [Greedy-Efficiency] run, which keeps four processes busy while HiGHS uses one thread. The reference run reached the target on every instance (0 misses). PI: primal integral over the budget, divided by the budget (mean; lower is better), with primal gap 1 before the first solution. Rich pools: the 40 instances of the slow stretch use the rerun (Section~\ref{sec:runconditions}).}
 \label{tab:time}
