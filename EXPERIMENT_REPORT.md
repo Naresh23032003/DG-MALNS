@@ -30,6 +30,7 @@ This report says how every experiment of the manuscript was run and where its re
 | Manuscript | Raw files | Section of `report_tables.md` |
 |---|---|---|
 | Main benchmark | `work_main.csv` | Main benchmark: work protocol |
+| Serial baseline Seq-Commit | `work_seq.csv`, `work_main.csv` | Sequential baseline Seq-Commit |
 | Commit-rule isolation, counterfactual, slack | `work_main.csv`, `work_commit_*.csv` | Commit-rule isolation |
 | Non-conflict epochs | `work_cf_all.csv` | All-epoch counterfactual |
 | Fresh barrier validation | `work_validation.csv` | Fresh validation |

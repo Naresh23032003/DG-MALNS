@@ -28,6 +28,9 @@ Tables (results/raw/work_<table>.csv, resumable per instance):
                 (static quota); plan declared in results/price_plan.md
   rho0          PC-MALNS [Greedy-Efficiency] with rho_0 = 0 (no quota-excess penalty in
                 the level-2 repair), all 60 instances
+  seq           sequential baseline Seq-Commit (agents one at a time, commit at once against the
+                current slack; serial, no conflicts), all 60 instances; added after the review of
+                2026-11-20
   cf_all        diagnostic: PC-MALNS [Greedy-Efficiency] and [MC-CRIP] on the 60 test instances with
                 every barrier rule logged on the same portfolio in every epoch (conflict epochs:
                 all rules; non-conflict epochs: the deterministic rules), search unchanged
@@ -142,7 +145,7 @@ def run_rows(table, inst, scale, lb, cfg_map, names, pool, counterfactual=True):
             cfg.work_budget, cfg.time_budget_s = WORK[scale], None
             cfg.mccrip_time_limit = MCCRIP_LIMIT
             cfg.counterfactual = counterfactual and cfg.commit == "MC-CRIP" and cfg.L >= 2
-            r = run_engine(inst, cfg, lb, seed=inst.seed, rep=rep, pool=pool)
+            r = run_engine(inst, cfg, lb, seed=inst.seed, rep=rep, pool=None if cfg.commit == "Seq-Commit" else pool)
             if not r.feasible:
                 raise RuntimeError(f"infeasible: {name} {inst.name} rep {rep}")
             d = dict(table=table, instance_name=inst.name, scale=scale, K=inst.K, N_total=inst.N_total, P=inst.P,
@@ -224,6 +227,8 @@ def run_table(table, pool):
     elif table == "cf_all":
         cfg_map = cf_all_configs()
         it, names, init = instances(TEST_SEEDS), list(cfg_map), "lp_round"
+    elif table == "seq":
+        it, cfg_map, names, init = instances(TEST_SEEDS), None, ["Seq-Commit"], "lp_round"
     elif table == "rho0":
         cfg_map = rho0_configs()
         it, names, init = instances(TEST_SEEDS), list(cfg_map), "lp_round"
@@ -245,7 +250,7 @@ def run_table(table, pool):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("table", choices=["main", "validation", "commit_direct", "commit_pair", "levels", "prices",
-                                      "restart", "prices_fresh", "rho0", "cf_all"])
+                                      "restart", "prices_fresh", "rho0", "cf_all", "seq"])
     a = ap.parse_args()
     t0 = time.perf_counter()
     pool = AgentPool(4)

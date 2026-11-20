@@ -12,6 +12,7 @@ Gaps are recomputed in `scripts/analyze_revision3.py` from `best_obj` and `lower
 |---|---|
 | `work_main.csv` | Main benchmark: all LNS methods, 60 test instances (seeds 101–110), 5 runs each |
 | `work_commit_direct.csv`, `work_commit_pair.csv` | Commit-rule isolation: direct start and MCA-SC-Pair (Medium, Large) |
+| `work_seq.csv` | Serial baseline Seq-Commit on the 60 test instances, 5 runs each (agents commit one after another; same work as the single-proposal rules) |
 | `work_cf_all.csv` | The GE and MC-CRIP runs of `work_main.csv`, repeated with every barrier rule logged in every epoch; the best objective is identical to `work_main.csv` in all 600 runs |
 | `work_validation.csv` | Fresh barrier validation on seeds 201–210 (plan: `../validation_plan.md`) |
 | `work_levels.csv`, `work_prices.csv`, `work_restart.csv`, `work_rho0.csv` | Ablations of the portfolio levels, prices and quotas, restarts, and ρ0 = 0 (60 test instances) |

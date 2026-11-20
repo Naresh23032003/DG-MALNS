@@ -67,3 +67,21 @@ def test_cf_all_logging_leaves_search_unchanged():
         if res[1].fast_path_epochs:
             assert "cheapest" in res[1].nc_sum
             assert res[1].nc_deviate.get("MC-CRIP", 0) == 0   # the exact barrier commits the cheapest levels
+
+
+def test_seq_commit_is_deterministic_and_feasible():
+    """Seq-Commit (sequential baseline): feasible, no conflict epochs, same epochs as the
+    single-proposal methods under the same work budget, and repeatable bit for bit."""
+    from src.instance_generator import generate_instance
+    from src.engine import method_configs, run_engine
+    inst = generate_instance(4, 30, P=6, tightness=1.25, seed=7, scale="Small")
+    C = method_configs(init_mode="lp_round", max_net=None, inner_iters=2)
+    a = C["Seq-Commit"]
+    b = C["Opt-SeqLock"]
+    a.work_budget = b.work_budget = 4 * 20
+    r1 = run_engine(inst, a, 1.0, seed=7, rep=1)
+    r2 = run_engine(inst, a, 1.0, seed=7, rep=1)
+    r3 = run_engine(inst, b, 1.0, seed=7, rep=1)
+    assert r1.feasible and r1.conflict_epochs == 0
+    assert r1.best_obj == r2.best_obj and r1.epochs_run == r3.epochs_run
+    assert r1.best_obj <= r1.initial_obj

@@ -183,6 +183,7 @@ def main():
         put("TttRatio" + SCT[s_], num(v["ratio_median"]))
         put("TttMedian" + SCT[s_], num(v["ttt_median"]))
         put("TttBudget" + SCT[s_], num(v["lns_wall_median"]))
+        put("TttCpuRatio" + SCT[s_], num(v["ratio_cpu_median"]))
     for s_, v in W["pi"].items():
         put("PiLns" + SCT[s_], num(v["pi_lns"], 3))
         put("PiHighs" + SCT[s_], num(v["pi_highs"], 3))
@@ -198,6 +199,7 @@ def main():
     for k, v in R["ttt_combined"].items():
         J, s_ = k.split("|")
         put("RichTttRatio" + clean(J) + SCT[s_], num(v["ratio_median"], 1))
+        put("RichTttCpuRatio" + clean(J) + SCT[s_], num(v["ratio_cpu_median"]))
     for which in ("original", "rerun"):
         tests("Rerun" + which.title(), R["rerun"]["tests"][which])
     put("RerunN", str(R["rerun"]["n"]))
@@ -228,6 +230,10 @@ def main():
     tests("PairWall", Pw["tests"])
     for s_, v in Pw["ttt"].items():
         put("PairTttRatio" + SCT[s_], num(v["ratio_median"]))
+    for s_, v in Pw["ttt"].items():
+        put("PairTttCpuRatio" + SCT[s_], num(v["ratio_cpu_median"]))
+    for m, v in S["run_sd"].items():
+        put("RunSD" + tag(m), num(v, 3))
     Mk = S["mmkp"]
     for m, by in Mk["gap"].items():
         for s_, v in by.items():
@@ -261,6 +267,20 @@ def main():
     F = S["prices_fresh"]
     tests("PriceFresh", {"LP": F["tests"][F["method"]]})
     gaps("PriceFresh", F["gap"], 3)
+    Sq = S["seq"]
+    gaps("Seq", Sq["gap"], 3)
+    for key, r in Sq["tests"].items():
+        ref, m = key.split("|")
+        pre = "Seq" + ("GE" if ref == "PC-MALNS [Greedy-Efficiency]" else "Seq") + "Vs" + tag(m)
+        put(pre + "Diff", num(r["diff"], 3))
+        put(pre + "WTL", f"{r['wins']}/{r['ties']}/{r['losses']}")
+        put(pre + "Wins", str(r["wins"]))
+        put(pre + "P", pval(r["p_holm"]))
+        put(pre + "Praw", pval(r["p"]))
+    for sc, r in Sq["per_scale"].items():
+        put("SeqScale" + SCT[sc] + "WTL", f"{r['wins']}/{r['ties']}/{r['losses']}")
+        put("SeqScale" + SCT[sc] + "P", pval(r["p_holm"]))
+        put("SeqScale" + SCT[sc] + "Diff", num(r["diff"], 3))
     Rh = S["rho0"]
     tests("RhoZero", {"V": Rh["tests"][Rh["method"]]})
     L0 = S["level0"]

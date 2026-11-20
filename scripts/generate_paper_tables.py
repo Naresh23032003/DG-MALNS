@@ -418,32 +418,35 @@ def tab_cfall():
 
 def tab_time():
     Wm, R, Pw = S["wall_main"], S["rich"], S["pair_wall"]
-    rows = [r"\multicolumn{6}{@{}l}{\textit{Main benchmark ($J = 6$)}} \\"]
+    rows = [r"\multicolumn{7}{@{}l}{\textit{Main benchmark ($J = 6$)}} \\"]
     for s in SC:
         t, p = Wm["ttt"][s], Wm["pi"][s]
         rows.append(f"{s} & {f(t['lns_wall_median'])} & {f(t['ttt_median'])} & {f(t['ratio_median'])} & "
-                    f"{f(p['pi_lns'], 3)} & {f(p['pi_highs'], 3)}" r" \\")
-    rows.append(r"\multicolumn{6}{@{}l}{\textit{MCA-SC-Pair}} \\")
+                    f"{f(t['ratio_cpu_median'])} & {f(p['pi_lns'], 3)} & {f(p['pi_highs'], 3)}" r" \\")
+    rows.append(r"\multicolumn{7}{@{}l}{\textit{MCA-SC-Pair}} \\")
     for s in ("Medium", "Large"):
         t = Pw["ttt"][s]
-        rows.append(f"{s} & {f(t['lns_wall_median'])} & {f(t['ttt_median'])} & {f(t['ratio_median'])} & & " r"\\")
+        rows.append(f"{s} & {f(t['lns_wall_median'])} & {f(t['ttt_median'])} & {f(t['ratio_median'])} & "
+                    f"{f(t['ratio_cpu_median'])} & & " r"\\")
     for J in ("20", "40"):
-        rows.append(rf"\multicolumn{{6}}{{@{{}}l}}{{\textit{{Rich pools, $J = {J}$}}}} \\")
+        rows.append(rf"\multicolumn{{7}}{{@{{}}l}}{{\textit{{Rich pools, $J = {J}$}}}} \\")
         for s in ("Medium", "Large", "X-Large", "XXL"):
             t = R["ttt_combined"][f"{J}|{s}"]
-            rows.append(f"{s} & {f(t['lns_wall_median'])} & {f(t['ttt_median'])} & {f(t['ratio_median'])} & & " r"\\")
+            rows.append(f"{s} & {f(t['lns_wall_median'])} & {f(t['ttt_median'])} & {f(t['ratio_median'])} & "
+                        f"{f(t['ratio_cpu_median'])} & & " r"\\")
     never = sum(int(v["never"]) for v in list(Wm["ttt"].values()) + list(Pw["ttt"].values())
                 + list(R["ttt_combined"].values()))
     table("tab_time",
           r"Time to target and primal integral (wall-clock protocol, medians over 10 instances). Budget: wall "
           r"clock of a " + PRIMARY + r" run; HiGHS: time the one-thread HiGHS reference run needs to reach the "
           r"mean " + PRIMARY + r" objective of the instance; Ratio: median of HiGHS time over budget (above 1: "
-          r"HiGHS needs longer). The reference run reached the target on every instance (" + str(never)
+          r"HiGHS needs longer); CPU ratio: median of HiGHS time over the CPU time of the " + PRIMARY + r" run, "
+          r"which keeps four processes busy while HiGHS uses one thread. The reference run reached the target on every instance (" + str(never)
           + r" misses). PI: primal integral over the budget, divided by the budget (mean; lower is better), "
           r"with primal gap 1 before the first solution. Rich pools: the 40 instances of the slow stretch use the "
           r"rerun (Section~\ref{sec:runconditions}).",
-          "tab:time", r"@{}lrrrrr@{}",
-          r"Scale & Budget (s) & HiGHS (s) & Ratio & PI \pge & PI HiGHS \\", rows)
+          "tab:time", r"@{}lrrrrrr@{}",
+          r"Scale & Budget (s) & HiGHS (s) & Ratio & CPU ratio & PI \pge & PI HiGHS \\", rows)
 
 
 def tab_rerun():

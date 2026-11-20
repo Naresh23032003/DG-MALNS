@@ -113,6 +113,8 @@
 | XXXL: PC-MALNS [Quota-Surplus] | 10 | 0.713 | 0.733 | -0.020 [-0.030, -0.010] | [-0.027, -0.011] | 9/0/1 | 0.0039 | 0.0508 |
 | XXXL: PC-MALNS [Greedy-Gain] | 10 | 0.713 | 0.792 | -0.079 [-0.096, -0.062] | [-0.093, -0.065] | 10/0/0 | 0.0020 | 0.0352 |
 
+- Mean standard deviation of the gap over the 5 runs of an instance (pp): Demand-Quota 0.089, Opt-Rollback 0.119, Opt-Rollback-Portfolio 0.117, Opt-SeqLock 0.120, Opt-SeqLock-Portfolio 0.127, PC-MALNS [Greedy-Efficiency] 0.113, PC-MALNS [Greedy-Gain] 0.109, PC-MALNS [MC-CRIP] 0.111, PC-MALNS [Quota-Surplus] 0.113, Static-Quota 0.078
+
 ## Commit-rule isolation: work protocol (Medium + Large)
 
 
@@ -359,6 +361,38 @@
 |---|---|---|---|---|---|---|---|---|
 | PC-MALNS [Greedy-Efficiency] prices=mccrip_lp, quota=static | 60 | 1.838 | 1.821 | +0.017 [-0.002, +0.036] | [-0.000, +0.036] | 24/0/36 | 0.0649 | 0.0649 |
 
+## Sequential baseline Seq-Commit: work protocol, 60 instances
+
+
+**Mean gap (%)**
+
+| method | Small | Medium | Large | X-Large | XXL | XXXL | All |
+|---|---|---|---|---|---|---|---|
+| PC-MALNS [Greedy-Efficiency] | 2.523 | 1.779 | 1.562 | 1.361 | 0.870 | 0.713 | 1.468 |
+| PC-MALNS [MC-CRIP] | 2.510 | 1.812 | 1.639 | 1.392 | 0.895 | 0.729 | 1.496 |
+| Seq-Commit | 2.588 | 2.007 | 1.789 | 1.584 | 1.022 | 0.862 | 1.642 |
+| Opt-SeqLock | 2.564 | 2.029 | 1.790 | 1.586 | 1.018 | 0.837 | 1.637 |
+| Opt-Rollback | 2.689 | 2.025 | 1.779 | 1.565 | 1.043 | 0.872 | 1.662 |
+
+**Seq-Commit comparisons (Holm over the three tests)** (difference = reference − method; negative favours the reference)
+
+| Method | n | Ref | Method | Diff [t 95% CI] | Bootstrap 95% CI | W/T/L | p | p (Holm) |
+|---|---|---|---|---|---|---|---|---|
+| GE vs Seq-Commit | 60 | 1.468 | 1.642 | -0.174 [-0.206, -0.142] | [-0.205, -0.143] | 55/0/5 | <1e-4 | <1e-4 |
+| Seq-Commit vs Opt-SeqLock | 60 | 1.642 | 1.637 | +0.005 [-0.016, +0.025] | [-0.015, +0.025] | 25/0/35 | 0.5366 | 0.5366 |
+| Seq-Commit vs Opt-Rollback | 60 | 1.642 | 1.662 | -0.020 [-0.049, +0.008] | [-0.049, +0.007] | 35/0/25 | 0.2306 | 0.4611 |
+
+**GE vs Seq-Commit per scale (Holm over the six scales)** (difference = reference − method; negative favours the reference)
+
+| Method | n | Ref | Method | Diff [t 95% CI] | Bootstrap 95% CI | W/T/L | p | p (Holm) |
+|---|---|---|---|---|---|---|---|---|
+| Small | 10 | 2.523 | 2.588 | -0.065 [-0.219, +0.090] | [-0.195, +0.056] | 6/0/4 | 0.4922 | 0.4922 |
+| Medium | 10 | 1.779 | 2.007 | -0.229 [-0.339, -0.119] | [-0.313, -0.135] | 9/0/1 | 0.0039 | 0.0117 |
+| Large | 10 | 1.562 | 1.789 | -0.227 [-0.271, -0.184] | [-0.264, -0.193] | 10/0/0 | 0.0020 | 0.0117 |
+| X-Large | 10 | 1.361 | 1.584 | -0.223 [-0.254, -0.192] | [-0.249, -0.198] | 10/0/0 | 0.0020 | 0.0117 |
+| XXL | 10 | 0.870 | 1.022 | -0.153 [-0.177, -0.128] | [-0.174, -0.134] | 10/0/0 | 0.0020 | 0.0117 |
+| XXXL | 10 | 0.713 | 0.862 | -0.149 [-0.168, -0.129] | [-0.165, -0.133] | 10/0/0 | 0.0020 | 0.0117 |
+
 ## rho0 = 0 ablation: work protocol, 60 instances
 
 
@@ -514,14 +548,14 @@
 
 **Time for the 1-thread HiGHS reference run to reach the mean PC-MALNS [Greedy-Efficiency] objective (s)**
 
-| scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median |
-|---|---|---|---|---|---|---|
-| Small | 10 | 0 | 0.330 | 0.584 | 0.503 | 0.656 |
-| Medium | 10 | 0 | 0.844 | 1.026 | 1.007 | 0.840 |
-| Large | 10 | 0 | 1.677 | 2.078 | 1.512 | 1.109 |
-| X-Large | 10 | 0 | 2.637 | 3.792 | 2.019 | 1.305 |
-| XXL | 10 | 0 | 9.310 | 10.427 | 4.039 | 2.300 |
-| XXXL | 10 | 0 | 10.853 | 16.480 | 6.079 | 1.784 |
+| scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median | ratio_cpu_median |
+|---|---|---|---|---|---|---|---|
+| Small | 10 | 0 | 0.330 | 0.584 | 0.503 | 0.656 | 0.190 |
+| Medium | 10 | 0 | 0.844 | 1.026 | 1.007 | 0.840 | 0.229 |
+| Large | 10 | 0 | 1.677 | 2.078 | 1.512 | 1.109 | 0.297 |
+| X-Large | 10 | 0 | 2.637 | 3.792 | 2.019 | 1.305 | 0.350 |
+| XXL | 10 | 0 | 9.310 | 10.427 | 4.039 | 2.300 | 0.618 |
+| XXXL | 10 | 0 | 10.853 | 16.480 | 6.079 | 1.784 | 0.485 |
 
 **Primal integral over the PC-MALNS budget, divided by the budget**
 
@@ -622,16 +656,16 @@
 
 **Rich pools: time for the HiGHS reference run (300 s) to reach the PC-MALNS objective (s)**
 
-| P | scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median |
-|---|---|---|---|---|---|---|---|
-| 20 | Large | 10 | 0 | 5.030 | 8.910 | 1.516 | 3.316 |
-| 20 | Medium | 10 | 0 | 2.656 | 7.089 | 1.008 | 2.634 |
-| 20 | X-Large | 10 | 0 | 8.710 | 68.559 | 2.022 | 4.298 |
-| 20 | XXL | 10 | 0 | 19.028 | 23.157 | 4.092 | 4.673 |
-| 40 | Large | 10 | 0 | 13.494 | 100.123 | 1.535 | 8.744 |
-| 40 | Medium | 10 | 0 | 4.804 | 23.829 | 1.015 | 4.731 |
-| 40 | X-Large | 10 | 0 | 12.885 | 14.963 | 2.033 | 6.338 |
-| 40 | XXL | 10 | 0 | 32.646 | 42.473 | 4.078 | 8.031 |
+| P | scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median | ratio_cpu_median |
+|---|---|---|---|---|---|---|---|---|
+| 20 | Large | 10 | 0 | 5.030 | 8.910 | 1.516 | 3.316 | 0.899 |
+| 20 | Medium | 10 | 0 | 2.656 | 7.089 | 1.008 | 2.634 | 0.715 |
+| 20 | X-Large | 10 | 0 | 8.710 | 68.559 | 2.022 | 4.298 | 1.173 |
+| 20 | XXL | 10 | 0 | 19.028 | 23.157 | 4.092 | 4.673 | 1.293 |
+| 40 | Large | 10 | 0 | 13.494 | 100.123 | 1.535 | 8.744 | 2.461 |
+| 40 | Medium | 10 | 0 | 4.804 | 23.829 | 1.015 | 4.731 | 1.322 |
+| 40 | X-Large | 10 | 0 | 12.885 | 14.963 | 2.033 | 6.338 | 1.781 |
+| 40 | XXL | 10 | 0 | 32.646 | 42.473 | 4.078 | 8.031 | 2.357 |
 
 **Rich, slow-stretch instances (40), original runs: PC-MALNS [Greedy-Efficiency] vs each** (difference = reference − method; negative favours the reference)
 
@@ -673,16 +707,16 @@
 
 **Rich pools, combined (rerun rows for the slow stretch): time to target (s)**
 
-| P | scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median |
-|---|---|---|---|---|---|---|---|
-| 20 | Large | 10 | 0 | 5.030 | 8.910 | 1.516 | 3.316 |
-| 20 | Medium | 10 | 0 | 2.656 | 7.089 | 1.008 | 2.634 |
-| 20 | X-Large | 10 | 0 | 8.751 | 68.980 | 2.021 | 4.323 |
-| 20 | XXL | 10 | 0 | 17.970 | 22.580 | 4.068 | 4.409 |
-| 40 | Large | 10 | 0 | 13.296 | 94.836 | 1.528 | 8.702 |
-| 40 | Medium | 10 | 0 | 4.521 | 22.401 | 1.010 | 4.489 |
-| 40 | X-Large | 10 | 0 | 12.924 | 14.963 | 2.033 | 6.345 |
-| 40 | XXL | 10 | 0 | 32.646 | 42.473 | 4.078 | 8.031 |
+| P | scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median | ratio_cpu_median |
+|---|---|---|---|---|---|---|---|---|
+| 20 | Large | 10 | 0 | 5.030 | 8.910 | 1.516 | 3.316 | 0.899 |
+| 20 | Medium | 10 | 0 | 2.656 | 7.089 | 1.008 | 2.634 | 0.715 |
+| 20 | X-Large | 10 | 0 | 8.751 | 68.980 | 2.021 | 4.323 | 1.178 |
+| 20 | XXL | 10 | 0 | 17.970 | 22.580 | 4.068 | 4.409 | 1.216 |
+| 40 | Large | 10 | 0 | 13.296 | 94.836 | 1.528 | 8.702 | 2.452 |
+| 40 | Medium | 10 | 0 | 4.521 | 22.401 | 1.010 | 4.489 | 1.247 |
+| 40 | X-Large | 10 | 0 | 12.924 | 14.963 | 2.033 | 6.345 | 1.789 |
+| 40 | XXL | 10 | 0 | 32.646 | 42.473 | 4.078 | 8.031 | 2.357 |
 
 ## Tightness sweep (Large, wall clock; eta = 1.25 from the main job)
 
@@ -759,12 +793,12 @@
 
 **Sweep: time to target (s)**
 
-| eta | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median |
-|---|---|---|---|---|---|---|
-| 0.850 | 10 | 0 | 1.220 | 1.866 | 1.515 | 0.805 |
-| 1.050 | 10 | 0 | 1.848 | 2.938 | 1.513 | 1.219 |
-| 1.250 | 10 | 0 | 1.677 | 2.078 | 1.512 | 1.109 |
-| 1.450 | 10 | 0 | 1.133 | 1.314 | 1.511 | 0.747 |
+| eta | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median | ratio_cpu_median |
+|---|---|---|---|---|---|---|---|
+| 0.850 | 10 | 0 | 1.220 | 1.866 | 1.515 | 0.805 | 0.213 |
+| 1.050 | 10 | 0 | 1.848 | 2.938 | 1.513 | 1.219 | 0.323 |
+| 1.250 | 10 | 0 | 1.677 | 2.078 | 1.512 | 1.109 | 0.297 |
+| 1.450 | 10 | 0 | 1.133 | 1.314 | 1.511 | 0.747 | 0.201 |
 
 ## MCA-SC-Pair: wall clock (uniform conditions)
 
@@ -811,10 +845,10 @@
 
 **Pair: time to target (s)**
 
-| scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median |
-|---|---|---|---|---|---|---|
-| Large | 10 | 0 | 1.774 | 2.517 | 1.514 | 1.171 |
-| Medium | 10 | 0 | 0.836 | 1.191 | 1.008 | 0.827 |
+| scale | n | never | ttt_median | ttt_max | lns_wall_median | ratio_median | ratio_cpu_median |
+|---|---|---|---|---|---|---|---|
+| Large | 10 | 0 | 1.774 | 2.517 | 1.514 | 1.171 | 0.314 |
+| Medium | 10 | 0 | 0.836 | 1.191 | 1.008 | 0.827 | 0.227 |
 
 ## MMKP (wall clock; excluded: INST04)
 

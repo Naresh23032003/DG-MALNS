@@ -290,104 +290,130 @@ def run_engine(instance: AllocationInstance, cfg: EngineConfig, lower_bound: flo
                 break
         elif clock() >= cfg.time_budget_s or t >= 50 * cfg.epochs:
             break
-        s_t = s_cur.copy()
-        rho_t = cfg.rho_init * (cfg.rho_decay ** t)
-        q_all = alpha_t * s_t[:, None]
-        duals_arg = lambda_t.copy() if cfg.duals != "none" else None
-        optimistic = (L == 1 and cfg.proposal_cap == "optimistic")
-        q_send = np.tile(s_t[:, None], (1, K)) if optimistic else q_all
-        if pool is None:
-            outs = [worker_step(instance, k, patterns[k], s_t, q_send[:, k].copy(), seed, t, L,
-                                duals_arg, rho_t, rep, cfg.max_net, cfg.inner_iters, cfg.levels)
-                    for k in range(K)]
-            portfolio = np.stack([o[0] for o in outs])
-            outs = [o[1:] for o in outs]
-        else:
-            outs = pool.step(prev_sel, t, s_t, q_send, duals_arg, rho_t, seed, rep, L,
-                             cfg.max_net, cfg.inner_iters, levels=cfg.levels)
-        ts0 = time.perf_counter()
-        delta_c = np.stack([o[0] for o in outs])
-        raw_dD = np.stack([o[1] for o in outs], axis=1)
-        taus = np.array([o[2] for o in outs])
-        if L == 1 and cfg.proposal_cap == "optimistic":
-            q_eff = np.tile(s_t[:, None], (1, K)) / K   # only used by quota-relative rules
-        else:
-            q_eff = q_all
-
-        best_l = np.argmin(delta_c, axis=1)
-        is_fast = bool(np.all(raw_dD[:, np.arange(K), best_l].sum(axis=1) <= s_t + TOL))
-        fast += int(is_fast)
-        conflicts += int(not is_fast)
-        tm0 = time.perf_counter()
-        sel = apply_rule(cfg.commit, delta_c, raw_dD, s_t, q_eff, rng_rule, lambda_t, rho_t,
-                         cfg.mccrip_time_limit)
-        barrier_s += time.perf_counter() - tm0
-        if l0_on:   # diagnostics only; does not affect the search
-            dom0 = np.any(raw_dD[:, :, 0] < -TOL, axis=0)
-            l0_tries += K
-            l0_dominated += int(dom0.sum())
-            l0_committed += int((dom0 & (np.asarray(sel) == 0)).sum())
-        if cfg.commit == "MC-CRIP":
-            fallbacks += int(not LAST_SOLVE_INFO["proven_optimal"])
-        if is_fast and cfg.cf_all and L >= 2:
-            # diagnostic only: what each rule commits when the cheapest levels fit. Deterministic rules
-            # only (the optimistic rules commit the cheapest levels whenever they fit); fixed generator,
-            # so neither the search nor rng_cf is touched.
-            tcf0 = time.perf_counter()
-            cheap = selection_cost(delta_c, best_l)
-            nc_sum["cheapest"] = nc_sum.get("cheapest", 0.0) + cheap
-            for r in NC_RULES:
-                v = selection_cost(delta_c, apply_rule(r, delta_c, raw_dD, s_t, q_eff, np.random.default_rng(0),
-                                                       lambda_t, rho_t, cfg.mccrip_time_limit))
-                nc_sum[r] = nc_sum.get(r, 0.0) + v
-                nc_dev[r] = nc_dev.get(r, 0) + int(v > cheap + 1e-6)
-            cf_time = time.perf_counter() - tcf0
-            ts0 += cf_time
-            wall0 += cf_time
-        if not is_fast:
-            matcher_ms.append(1000.0 * (time.perf_counter() - tm0))
-            if (cfg.counterfactual or cfg.cf_all) and L >= 2:
-                tcf0 = time.perf_counter()
-                cf = counterfactual_costs(delta_c, raw_dD, s_t, q_eff, lambda_t, rho_t, rng_cf,
-                                          mccrip_time_limit=cfg.mccrip_time_limit)
-                for r, v in cf.items():
-                    cf_sum[r] = cf_sum.get(r, 0.0) + v
-                    cf_wins[r] = cf_wins.get(r, 0) + int(cf["MC-CRIP"] < v - 1e-6)
-                cf_time = time.perf_counter() - tcf0
-                ts0 += cf_time      # logging is not charged to any clock
-                wall0 += cf_time
-        assert selection_feasible(raw_dD, s_t, sel), (cfg.name, t)
-
-        proposals += int(np.sum(np.min(delta_c, axis=1) < -TOL))
-        for k in range(K):
-            if sel[k] >= 0:
-                if delta_c[k, sel[k]] < -TOL:
+        if cfg.commit == "Seq-Commit":
+            # sequential baseline (serial only): the agents act one after another in a random order;
+            # each builds the optimistic proposal (L = 1, cap = the slack left by the agents before it)
+            # and commits it at once if it improves. No conflicts and no barrier; same work per epoch
+            # as the single-proposal methods.
+            if pool is not None:
+                raise ValueError("Seq-Commit runs serially (pool=None)")
+            rho_t = cfg.rho_init * (cfg.rho_decay ** t)
+            taus_l = []
+            for k in rng_rule.permutation(K):
+                port, dc, dD, tau = worker_step(instance, int(k), patterns[k], s_cur.copy(), s_cur.copy(), seed, t,
+                                                1, None, rho_t, rep, cfg.max_net, cfg.inner_iters, None)
+                taus_l.append(tau)
+                if dc[1] < -TOL:
+                    proposals += 1
+                    assert np.all(dD[:, 1] <= s_cur + TOL), (cfg.name, t, int(k))
+                    patterns[k] = port[1]
+                    obj_cur += float(dc[1])
+                    s_cur = s_cur - dD[:, 1]
                     accepted += 1
-                if pool is None:
-                    patterns[k] = portfolio[k, sel[k]]
-                obj_cur += float(delta_c[k, sel[k]])
-                s_cur = s_cur - raw_dD[:, k, sel[k]]
-        prev_sel = sel.copy()
+            fast += 1
+            taus = np.array(taus_l)
+            tsync = 0.0
+            cpu_t += float(np.sum(taus))
+            sim_t += float(np.sum(taus))     # serial: no parallel speedup
+        else:
+            s_t = s_cur.copy()
+            rho_t = cfg.rho_init * (cfg.rho_decay ** t)
+            q_all = alpha_t * s_t[:, None]
+            duals_arg = lambda_t.copy() if cfg.duals != "none" else None
+            optimistic = (L == 1 and cfg.proposal_cap == "optimistic")
+            q_send = np.tile(s_t[:, None], (1, K)) if optimistic else q_all
+            if pool is None:
+                outs = [worker_step(instance, k, patterns[k], s_t, q_send[:, k].copy(), seed, t, L,
+                                    duals_arg, rho_t, rep, cfg.max_net, cfg.inner_iters, cfg.levels)
+                        for k in range(K)]
+                portfolio = np.stack([o[0] for o in outs])
+                outs = [o[1:] for o in outs]
+            else:
+                outs = pool.step(prev_sel, t, s_t, q_send, duals_arg, rho_t, seed, rep, L,
+                                 cfg.max_net, cfg.inner_iters, levels=cfg.levels)
+            ts0 = time.perf_counter()
+            delta_c = np.stack([o[0] for o in outs])
+            raw_dD = np.stack([o[1] for o in outs], axis=1)
+            taus = np.array([o[2] for o in outs])
+            if L == 1 and cfg.proposal_cap == "optimistic":
+                q_eff = np.tile(s_t[:, None], (1, K)) / K   # only used by quota-relative rules
+            else:
+                q_eff = q_all
 
-        # prices
-        if cfg.duals == "heuristic":
-            g_t = np.sum(raw_dD[:, :, L] - q_eff, axis=1)
-            gamma_t = 0.25 * float(np.sum(np.abs(delta_c[:, L]))) / (float(g_t @ g_t) + 1.0)
-            lambda_t = np.maximum(0.0, (1.0 - cfg.beta_dual) * lambda_t + gamma_t * g_t)
-        elif cfg.duals == "mccrip_lp":
-            mu = mccrip_lp_duals(delta_c, raw_dD - q_eff[:, :, None]) if not is_fast else np.zeros(m)
-            lambda_t = (1.0 - cfg.kappa_lp) * lambda_t + cfg.kappa_lp * mu
-        # quotas
-        if cfg.quota == "dynamic" and L >= 2:
-            unreal = np.maximum(0.0, delta_c[:, 1] - delta_c[:, L])
-            unreal[sel == L] = 0.0
-            excess = np.maximum(0.0, raw_dD[:, :, L] - q_eff)
-            u_rk = np.where(excess > TOL, unreal[None, :] / np.maximum(excess, TOL), 0.0) + 1e-3
-            alpha_t = (1 - cfg.omega_quota) * alpha_t + cfg.omega_quota * u_rk / u_rk.sum(axis=1, keepdims=True)
+            best_l = np.argmin(delta_c, axis=1)
+            is_fast = bool(np.all(raw_dD[:, np.arange(K), best_l].sum(axis=1) <= s_t + TOL))
+            fast += int(is_fast)
+            conflicts += int(not is_fast)
+            tm0 = time.perf_counter()
+            sel = apply_rule(cfg.commit, delta_c, raw_dD, s_t, q_eff, rng_rule, lambda_t, rho_t,
+                             cfg.mccrip_time_limit)
+            barrier_s += time.perf_counter() - tm0
+            if l0_on:   # diagnostics only; does not affect the search
+                dom0 = np.any(raw_dD[:, :, 0] < -TOL, axis=0)
+                l0_tries += K
+                l0_dominated += int(dom0.sum())
+                l0_committed += int((dom0 & (np.asarray(sel) == 0)).sum())
+            if cfg.commit == "MC-CRIP":
+                fallbacks += int(not LAST_SOLVE_INFO["proven_optimal"])
+            if is_fast and cfg.cf_all and L >= 2:
+                # diagnostic only: what each rule commits when the cheapest levels fit. Deterministic rules
+                # only (the optimistic rules commit the cheapest levels whenever they fit); fixed generator,
+                # so neither the search nor rng_cf is touched.
+                tcf0 = time.perf_counter()
+                cheap = selection_cost(delta_c, best_l)
+                nc_sum["cheapest"] = nc_sum.get("cheapest", 0.0) + cheap
+                for r in NC_RULES:
+                    v = selection_cost(delta_c, apply_rule(r, delta_c, raw_dD, s_t, q_eff, np.random.default_rng(0),
+                                                           lambda_t, rho_t, cfg.mccrip_time_limit))
+                    nc_sum[r] = nc_sum.get(r, 0.0) + v
+                    nc_dev[r] = nc_dev.get(r, 0) + int(v > cheap + 1e-6)
+                cf_time = time.perf_counter() - tcf0
+                ts0 += cf_time
+                wall0 += cf_time
+            if not is_fast:
+                matcher_ms.append(1000.0 * (time.perf_counter() - tm0))
+                if (cfg.counterfactual or cfg.cf_all) and L >= 2:
+                    tcf0 = time.perf_counter()
+                    cf = counterfactual_costs(delta_c, raw_dD, s_t, q_eff, lambda_t, rho_t, rng_cf,
+                                              mccrip_time_limit=cfg.mccrip_time_limit)
+                    for r, v in cf.items():
+                        cf_sum[r] = cf_sum.get(r, 0.0) + v
+                        cf_wins[r] = cf_wins.get(r, 0) + int(cf["MC-CRIP"] < v - 1e-6)
+                    cf_time = time.perf_counter() - tcf0
+                    ts0 += cf_time      # logging is not charged to any clock
+                    wall0 += cf_time
+            assert selection_feasible(raw_dD, s_t, sel), (cfg.name, t)
 
-        tsync = time.perf_counter() - ts0
-        cpu_t += float(np.sum(taus)) + tsync
-        sim_t += float(np.max(taus)) + tsync
+            proposals += int(np.sum(np.min(delta_c, axis=1) < -TOL))
+            for k in range(K):
+                if sel[k] >= 0:
+                    if delta_c[k, sel[k]] < -TOL:
+                        accepted += 1
+                    if pool is None:
+                        patterns[k] = portfolio[k, sel[k]]
+                    obj_cur += float(delta_c[k, sel[k]])
+                    s_cur = s_cur - raw_dD[:, k, sel[k]]
+            prev_sel = sel.copy()
+
+            # prices
+            if cfg.duals == "heuristic":
+                g_t = np.sum(raw_dD[:, :, L] - q_eff, axis=1)
+                gamma_t = 0.25 * float(np.sum(np.abs(delta_c[:, L]))) / (float(g_t @ g_t) + 1.0)
+                lambda_t = np.maximum(0.0, (1.0 - cfg.beta_dual) * lambda_t + gamma_t * g_t)
+            elif cfg.duals == "mccrip_lp":
+                mu = mccrip_lp_duals(delta_c, raw_dD - q_eff[:, :, None]) if not is_fast else np.zeros(m)
+                lambda_t = (1.0 - cfg.kappa_lp) * lambda_t + cfg.kappa_lp * mu
+            # quotas
+            if cfg.quota == "dynamic" and L >= 2:
+                unreal = np.maximum(0.0, delta_c[:, 1] - delta_c[:, L])
+                unreal[sel == L] = 0.0
+                excess = np.maximum(0.0, raw_dD[:, :, L] - q_eff)
+                u_rk = np.where(excess > TOL, unreal[None, :] / np.maximum(excess, TOL), 0.0) + 1e-3
+                alpha_t = (1 - cfg.omega_quota) * alpha_t + cfg.omega_quota * u_rk / u_rk.sum(axis=1, keepdims=True)
+
+            tsync = time.perf_counter() - ts0
+            cpu_t += float(np.sum(taus)) + tsync
+            sim_t += float(np.max(taus)) + tsync
         t += 1
         passes += ppe
         if obj_cur < best_obj - 1e-9:
@@ -459,6 +485,8 @@ def method_configs(init_mode="booking", max_net=None, inner_iters=1, epochs=120,
     C["Opt-Rollback"] = EngineConfig("Opt-Rollback", L=1, commit="Opt-Rollback", proposal_cap="optimistic", **base)
     C["Opt-SeqLock"] = EngineConfig("Opt-SeqLock", L=1, commit="Opt-SeqLock", proposal_cap="optimistic", **base)
     C["Static-Quota"] = EngineConfig("Static-Quota", L=1, commit="Static-Quota", quota="static", **base)
+    # sequential baseline: one agent at a time against the current slack (serial, no conflicts)
+    C["Seq-Commit"] = EngineConfig("Seq-Commit", L=1, commit="Seq-Commit", proposal_cap="optimistic", **base)
     C["Demand-Quota"] = EngineConfig("Demand-Quota", L=1, commit="Static-Quota", quota="demand", **base)
     # four-level portfolio methods (L = 3: all four candidate generators)
     # PC-MALNS: the portfolio with one of its four barrier rules (Greedy-Efficiency is

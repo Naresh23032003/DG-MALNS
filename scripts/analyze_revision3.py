@@ -196,6 +196,10 @@ def main_work():
                PS.assign(method=PS.scale + ": " + PS.method))
     # counterfactual over all conflict epochs of the MC-CRIP runs
     cf = counterfactual(W, "LP-Round start, all scales")
+    sd = W.groupby(["instance_name", "method"]).gap_pct.std(ddof=1).groupby("method").mean()
+    S["run_sd"] = {m: float(v) for m, v in sd.items()}
+    MD.append("\n- Mean standard deviation of the gap over the 5 runs of an instance (pp): "
+              + ", ".join(f"{m} {v:.3f}" for m, v in sd.items()))
     S["main_work"] = dict(gap=tdict(g), tests=tests_dict(C), tests_oracle=tests_dict(C2), epochs=tdict(ep),
                           barrier_ms=tdict(bt), barrier_s_total=tdict(btot), wall_s=tdict(wall),
                           conflict_pct=tdict(cr), accepted_per_epoch=tdict(acc), mccrip_fallbacks=int(fb),
@@ -359,6 +363,33 @@ def extras(main_d):
         md_compare("Pre-declared test", C)
         S["prices_fresh"] = dict(gap=tdict(g), tests=tests_dict(C), n=int(F.instance_name.nunique()),
                                  method=priced)
+    Q = read("work_seq.csv")
+    if Q is not None and main_d is not None:
+        Q = gapify(Q)
+        d = pd.concat([main_d[main_d.method.isin([PRIMARY, ORACLE, "Opt-SeqLock", "Opt-Rollback"])], Q],
+                      ignore_index=True)
+        g = scale_means(d)[[PRIMARY, ORACLE, "Seq-Commit", "Opt-SeqLock", "Opt-Rollback"]]
+        C = compare(wide(d), PRIMARY, ["Seq-Commit"], "seq")
+        C2 = compare(wide(d), "Seq-Commit", ["Opt-SeqLock", "Opt-Rollback"], "seq-vs-opt")
+        F = pd.concat([C, C2], ignore_index=True)
+        F["p_holm"] = holm(F["p"].values)
+        MD.append("\n## Sequential baseline Seq-Commit: work protocol, 60 instances\n")
+        md_table("Mean gap (%)", g.T)
+        md_compare("Seq-Commit comparisons (Holm over the three tests)", F.assign(
+            method=F.reference.str.replace("PC-MALNS [Greedy-Efficiency]", "GE") + " vs " + F.method))
+        per = []
+        for sc in SC:
+            Cs = compare(wide(d[d.scale == sc]), PRIMARY, ["Seq-Commit"], sc)
+            per.append(Cs.assign(scale=sc))
+        PS = pd.concat(per, ignore_index=True)
+        PS["p_holm"] = holm(PS["p"].values)
+        md_compare("GE vs Seq-Commit per scale (Holm over the six scales)", PS.assign(method=PS.scale))
+        S["seq"] = dict(gap=tdict(g), tests={f"{r.reference}|{r.method}": {k: getattr(r, k) for k in
+                        ("n", "ref_mean", "method_mean", "diff", "t_lo", "t_hi", "wins", "ties", "losses", "p", "p_holm")}
+                        for r in F.itertuples()},
+                        per_scale={r.scale: {k: getattr(r, k) for k in ("diff", "wins", "ties", "losses", "p", "p_holm")}
+                                   for r in PS.itertuples()},
+                        epochs=tdict(scale_means(Q, "epochs_run")))
     R = read("work_rho0.csv")
     if R is not None and main_d is not None:
         R = gapify(R)
@@ -535,6 +566,7 @@ def time_to_target(d, job, target_method=PRIMARY):
         return None
     m = d[d.method == target_method].groupby("instance_name").agg(target=("best_obj", "mean"),
                                                                   wall=("wall_clock_s", "mean"),
+                                                                  cpu=("cpu_time_s", "mean"),
                                                                   scale=("scale", "first"), P=("P", "first"),
                                                                   eta=("eta", "first"))
     rows = []
@@ -544,7 +576,8 @@ def time_to_target(d, job, target_method=PRIMARY):
         tr = json.loads(R.loc[inst, "trace"]) if isinstance(R.loc[inst, "trace"], str) else []
         lim = float(R.loc[inst, "highs_time_limit_s"])
         t = next((a for a, o in tr if o <= r.target + 1e-6 and a <= lim), np.nan)
-        rows.append(dict(instance_name=inst, scale=r.scale, P=r.P, eta=r.eta, ttt=t, lns_wall=r.wall, limit=lim,
+        rows.append(dict(instance_name=inst, scale=r.scale, P=r.P, eta=r.eta, ttt=t, lns_wall=r.wall, lns_cpu=r.cpu,
+                         limit=lim,
                          killed=bool(R.loc[inst, "highs_killed"]) if "highs_killed" in R and R.loc[inst, "highs_killed"] == R.loc[inst, "highs_killed"] else False))
     return pd.DataFrame(rows)
 
@@ -573,6 +606,8 @@ def ttt_summary(tt, keys):
     g = tt.groupby(keys).agg(n=("instance_name", "count"), never=("ttt", lambda x: int(x.isna().sum())),
                             ttt_median=("ttt", "median"), ttt_max=("ttt", "max"), lns_wall_median=("lns_wall", "median"))
     g["ratio_median"] = tt.assign(r=tt.ttt / tt.lns_wall).groupby(keys).r.median()
+    # the reference run uses one thread; against the CPU time of the four-process LNS run
+    g["ratio_cpu_median"] = tt.assign(r=tt.ttt / tt.lns_cpu).groupby(keys).r.median()
     return g
 
 

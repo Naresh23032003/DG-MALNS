@@ -1,7 +1,7 @@
 Highlights
 
-* Concurrent LNS agents offer capacity-stratified moves that are selected jointly
+* Concurrent search agents offer capacity-stratified moves that are selected jointly
 * Joint selection beats rollback and lock commit on 54 to 57 of 60 test instances
 * Exact barrier wins single epochs, yet a greedy efficiency rule ends slightly better
-* A MIP solver needs 2.6 to 8.7 times as long to match it with 20 or 40 alternatives
+* An exact solver needs 2.6 to 8.7 times as long to match it with many alternatives
 * Improvement-only agents stall on public knapsack benchmarks with tight capacities
