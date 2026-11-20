@@ -1,0 +1,18 @@
+\begin{table}[!htb]
+\centering
+\caption{Portfolio-level ablation of PC-MALNS [Greedy-Efficiency] (work protocol, all 60 instances of Table~\ref{tab:main}, 5 runs each). A level that is not generated is replaced by the incumbent; without level $0$ no donor rebalance is tried. Every variant uses the same number of repair passes, so variants without level $2$ run 25\% more epochs. Diff $=$ default $-$ variant (pp); W/T/L of the default; exact Wilcoxon $p$ Holm-adjusted over the three variants. $^{\dagger}$Separate test: level $2$ without its quadratic penalty ($\rho_t = 0$), unadjusted $p$.}
+\label{tab:levels}
+\footnotesize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Generated levels & Gap & Diff & W/T/L & $p_{\text{Holm}}$ \\
+\midrule
+$\{0,1,2,3\}$ (all levels, default) & 1.468 & & & \\
+$\{1,3\}$ & 1.497 & $-$0.029 & 50/0/10 & 0.0002 \\
+$\{0,1,3\}$ & 1.497 & $-$0.029 & 50/0/10 & 0.0002 \\
+$\{1,2,3\}$ & 1.468 & $-$0.000 & 1/59/0 & 1.0000 \\
+\addlinespace
+All levels, $\rho_0 = 0$ in level $2$ & 1.474 & $-$0.006 & 27/6/27 & 0.7007$^{\dagger}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

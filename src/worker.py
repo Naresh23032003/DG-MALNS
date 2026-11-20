@@ -13,9 +13,9 @@ Portfolio levels (L = 3 for PC-MALNS and the -Portfolio rules; L = 1 for the
 single-proposal baselines). All
 levels are built from the SAME destroyed partial solution (price-free destroy, as in
 the baselines):
-    l = 0  incumbent x_k^{(t)}, replaced by the donor rebalance of x_k^{(t)} (hub
+    l = 0  incumbent x_k^{(t)}, replaced by the donor rebalance of x_k^{(t)} (resource
            weights w = lambda, or 1 without duals) only if the donor dominates it:
-           no higher cost and no higher usage on any hub, lower on at least one
+           no higher cost and no higher usage on any shared resource, lower on at least one
     l = 1  quota-safe repair y_hat_k: best-of-two Regret-2 repair on true cost c_k
            with D_k(y - x_k) <= q_k (falls back to x_k if not improving); with
            q_k = s/K this is exactly the Static-Quota proposal
@@ -31,7 +31,7 @@ import time
 from typing import Optional, Tuple
 import numpy as np
 
-from src.instance_generator import CoupledRoutingInstance
+from src.instance_generator import AllocationInstance
 from src.feasibility import evaluate_agent_cost, compute_agent_global_usage, TOL
 from src.operators import (
     destroy_operator,
@@ -53,7 +53,7 @@ def worker_rng(seed: int, t: int, k: int, rep: int = 0) -> np.random.Generator:
 
 
 def worker_step(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     inc_k: np.ndarray,
     s_t: np.ndarray,
@@ -66,6 +66,7 @@ def worker_step(
     rep: int = 0,
     max_net: Optional[int] = MAX_NET_UPGRADES,
     inner_iters: int = 1,
+    levels: Optional[Tuple[int, ...]] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """
     Build the portfolio of worker k at epoch t.
@@ -73,7 +74,7 @@ def worker_step(
     Returns:
         portfolio: (L+1, N_agent) pattern vectors y_k^{(t,l)}
         delta_c:   (L+1,) cost deltas c_k^T (y_k^{(t,l)} - x_k^{(t)})
-        delta_D:   (m, L+1) hub usage deltas D_k (y_k^{(t,l)} - x_k^{(t)})
+        delta_D:   (m, L+1) shared usage deltas D_k (y_k^{(t,l)} - x_k^{(t)})
         tau:       worker wall-clock time in seconds
 
     max_net:     cap on net new consolidations per repair call (None = no cap).
@@ -81,6 +82,10 @@ def worker_step(
                  Step j > 0 destroys the level's current trial solution and repairs
                  it against the remaining level cap; a step is kept only if it lowers
                  the agent cost. M = 1 reproduces the single-step worker exactly.
+    levels:      portfolio-level ablation (L = 3 only): the set of generated levels.
+                 A level that is not generated is the plain incumbent (Delta c = 0,
+                 Delta D = 0); without level 0 the donor rebalance is not tried.
+                 None = all levels.
     """
     t0 = time.perf_counter()
     rng = worker_rng(seed, t, k, rep)
@@ -129,8 +134,9 @@ def worker_step(
     state = rng.bit_generator.state  # generator state shared by l = 1 and l = 3
 
     # l = 0: incumbent (or a dominating donor rebalance)
+    on = (lambda l: True) if levels is None else (lambda l: l in levels)
     put(0, inc_k)
-    if L >= 2:
+    if L >= 2 and on(0):
         w = duals if duals is not None else np.ones(m, dtype=np.float64)
         y0 = donor_rebalance_repair(instance, k, inc_k, hub_weights=w)
         dc0 = evaluate_agent_cost(instance, k, y0) - c_inc
@@ -139,15 +145,19 @@ def worker_step(
             put(0, y0)
 
     # l = 1: quota-safe repair y_hat (cap q_k)
-    put(1, safe_repair(q_k, rng))
+    put(1, safe_repair(q_k, rng) if on(1) else inc_k)
 
-    if L >= 3:
+    if L >= 3 and on(3):
         # l = 3: optimistic repair y_bar (cap s^{(t)}), same generator state as l = 1
         rng_opt = np.random.default_rng()
         rng_opt.bit_generator.state = state
         put(3, safe_repair(s_t, rng_opt))
+    elif L >= 3:
+        put(3, inc_k)
 
-    if L >= 2:
+    if L >= 2 and not on(2):
+        put(2, inc_k)
+    elif L >= 2:
         # l = 2: borrower repair of the excess-only surrogate (Eq. 8)
         lam2 = duals if duals is not None else np.zeros(m)
         cap2 = 0.5 * (q_k + s_t)
@@ -161,13 +171,52 @@ def worker_step(
     return portfolio, delta_c, delta_D, time.perf_counter() - t0
 
 
+def perturb_agent(instance: AllocationInstance, k: int, x_k: np.ndarray,
+                  rng: np.random.Generator) -> np.ndarray:
+    """Restart kick (restart variant only): destroy x_k with the standard destroy
+    operator, then give every destroyed request, in random order, a pattern drawn
+    uniformly from its patterns p >= 1 that still fit the local capacities b_k and keep
+    the agent's shared usage at most D_k x_k (p = 0 if none fits). The result is
+    accepted whatever its cost; since it uses no more shared capacity than x_k, the
+    perturbed solution stays feasible. Counted as one repair pass."""
+    from src.feasibility import compute_agent_local_usage
+    part, idx = destroy_operator(instance, k, x_k, rng, min_ratio=DESTROY_MIN_RATIO,
+                                 max_ratio=DESTROY_MAX_RATIO, dual_prices=None)
+    y = part.copy()
+    cap_g = compute_agent_global_usage(instance, k, x_k)
+    cur_g = compute_agent_global_usage(instance, k, y)
+    cur_l = compute_agent_local_usage(instance, k, y)
+    for i in rng.permutation(np.asarray(idx, dtype=np.int64)):
+        D_i = instance.D[k][:, i, 1:]
+        A_i = instance.A[k][:, i, 1:]
+        fit = (np.all(cur_g[:, None] + D_i <= cap_g[:, None] + TOL, axis=0)
+               & np.all(cur_l[:, None] + A_i <= instance.b[k][:, None] + TOL, axis=0))
+        cands = np.where(fit)[0] + 1
+        if len(cands):
+            p = int(rng.choice(cands))
+            y[i] = p
+            cur_g = cur_g + instance.D[k][:, i, p]
+            cur_l = cur_l + instance.A[k][:, i, p]
+    return y
+
+
+def repair_passes_per_epoch(L: int, M: int, levels=None) -> int:
+    """Regret-2 repair passes of one worker in one epoch (the unit of the work budget):
+    levels 1 and 3 run a best-of-two repair (2 passes per chained step), level 2 one pass
+    per step; the single-proposal methods (L = 1) run level 1 only."""
+    if L == 1:
+        return 2 * M
+    on = (lambda l: True) if levels is None else (lambda l: l in levels)
+    return M * (2 * on(1) + 1 * on(2) + 2 * on(3))
+
+
 # ---------------------------------------------------------------------------
 # Process-pool support (real multi-process execution of the worker step)
 # ---------------------------------------------------------------------------
-_POOL_INSTANCE: Optional[CoupledRoutingInstance] = None
+_POOL_INSTANCE: Optional[AllocationInstance] = None
 
 
-def pool_initializer(instance: CoupledRoutingInstance) -> None:
+def pool_initializer(instance: AllocationInstance) -> None:
     global _POOL_INSTANCE
     _POOL_INSTANCE = instance
 

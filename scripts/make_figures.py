@@ -1,16 +1,18 @@
 """
-Figures for the revision-2 benchmark (results/figures/*.pdf and .png, 300 dpi).
-All text >= 9 pt, horizontal tick labels, a fixed categorical colour order with marker /
-line-style redundancy (colour is never the only identity cue), one y-axis per panel,
-acceptance-rate axis capped at 105 %.
+Figures of the manuscript (revision 3): results/figures/*.pdf and .png (300 dpi).
+All text >= 9 pt, one y-axis per panel, a fixed colour per method with marker and
+line-style redundancy (colour is never the only identity cue). Gaps use the final lower
+bounds (results/raw/lower_bounds.csv).
 
-  fig_gap_by_scale        mean gap to LB by scale (table A)
-  fig_anytime             anytime curves: PC-MALNS (W = 4, run 0) vs HiGHS 1T trace
-  fig_rich_pools          gap and primal integral, P = 20 / 40 (table B)
-  fig_tightness           gap vs coupling tightness eta (Large)
-  fig_scaling             wall-clock speedup vs W
-  fig_counterfactual      share of the MC-CRIP barrier gain captured by each rule
-  fig_acceptance          accepted / improving proposals by method (table A)
+  fig_gap_diff        gap difference to PC-MALNS [Greedy-Efficiency] by scale:
+                      (a) LNS methods, work protocol; (b) HiGHS variants, wall-clock protocol
+  fig_anytime         wall clock: PC-MALNS [Greedy-Efficiency] run 0 vs HiGHS (cold reference
+                      trace) and HiGHS + LP-Round start (Large, XXL)
+  fig_progress        share of the final improvement reached over the epoch budget (work)
+  fig_rich_pools      gap by scale, J = 20 / 40 (wall clock)
+  fig_tightness       gap vs coupling tightness (Large, wall clock)
+  fig_counterfactual  share of the MC-CRIP barrier gain captured by each rule
+  fig_acceptance      committed / improving proposals by method (work protocol)
 """
 
 import json
@@ -24,19 +26,31 @@ import numpy as np
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+import scripts.analyze_revision3 as AR
+from src.stats import mean_ci
+
 RAW = REPO_ROOT / "results" / "raw"
 FIG = REPO_ROOT / "results" / "figures"
-PRIMARY = "PC-MALNS [MC-CRIP]"
-SCALES = ["Small", "Medium", "Large", "X-Large", "XXL", "XXXL"]
+PRIMARY = AR.PRIMARY
+SCALES = AR.SC
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*"]
 STYLES = ["-", "--", "-.", ":", "-", "--", "-.", ":"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-# fixed entity -> slot assignment (colour follows the method, never its rank)
-SLOT = {PRIMARY: 0, "PC-MALNS [BCRM-Greedy]": 1, "Greedy-Efficiency-Portfolio": 2, "Greedy-Gain-Portfolio": 3,
-        "Opt-Rollback": 4, "Opt-SeqLock": 5, "HiGHS (1T, wall-matched)": 6, "HiGHS (4T, wall-matched)": 7,
-        "Opt-Rollback-Portfolio": 4, "Opt-SeqLock-Portfolio": 5, "Static-Quota": 7, "Demand-Quota": 6,
-        "HiGHS (1 thread)": 6, "LP-Round": 3}
+SLOT = {PRIMARY: 0, "PC-MALNS [MC-CRIP]": 1, "PC-MALNS [Quota-Surplus]": 2, "PC-MALNS [Greedy-Gain]": 3,
+        "Opt-Rollback": 4, "Opt-SeqLock": 5, "Opt-Rollback-Portfolio": 6, "Opt-SeqLock-Portfolio": 7,
+        "Static-Quota": 7, "Async-Lock": 3, "LP-Round": 3,
+        "HiGHS (1T, wall-matched)": 3, "HiGHS (4T, wall-matched)": 5, "HiGHS+LP-Round (1T, wall-matched)": 6,
+        "HiGHS (1T, CPU-matched)": 7, "HiGHS+LP-Round (1T, CPU-matched)": 2, "HiGHS (5s)": 7}
+# no two methods drawn in the same panel share a slot (colour, marker and line style)
+SHORT = {PRIMARY: "PC-MALNS [GE]", "PC-MALNS [MC-CRIP]": "PC-MALNS [MC-CRIP]",
+         "PC-MALNS [Quota-Surplus]": "PC-MALNS [QS]", "PC-MALNS [Greedy-Gain]": "PC-MALNS [GG]",
+         "Opt-Rollback-Portfolio": "Opt-Rollback-Portf.", "Opt-SeqLock-Portfolio": "Opt-SeqLock-Portf.",
+         "HiGHS (1T, wall-matched)": "HiGHS wall-matched", "HiGHS (4T, wall-matched)": "HiGHS 4T wall-matched",
+         "HiGHS+LP-Round (1T, wall-matched)": "HiGHS+LP-Round wall-m.",
+         "HiGHS (1T, CPU-matched)": "HiGHS CPU-matched", "HiGHS+LP-Round (1T, CPU-matched)": "HiGHS+LP-Round CPU-m."}
 
 plt.rcParams.update({"font.size": 10, "axes.titlesize": 10, "axes.labelsize": 10, "xtick.labelsize": 9,
                      "ytick.labelsize": 9, "legend.fontsize": 9, "font.family": "serif",
@@ -58,105 +72,163 @@ def save(fig, name):
     print("wrote", name)
 
 
-def load(n):
-    p = RAW / f"bench_{n}.csv"
-    return pd.read_csv(p) if p.exists() else None
+def inst_mean(df, value="gap_pct", keys=("instance_name", "scale")):
+    return df.groupby(list(keys) + ["method"], as_index=False)[value].mean()
 
 
-def inst_mean(df, value):
-    return df.groupby(["instance_name", "scale", "method"], as_index=False)[value].mean()
-
-
-def fig_gap_by_scale(A):
-    methods = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Opt-Rollback", "Opt-SeqLock",
-               "HiGHS (1T, wall-matched)", "HiGHS (4T, wall-matched)"]
-    g = inst_mean(A, "gap_pct").groupby(["scale", "method"]).gap_pct.mean().unstack()
-    sc = [s for s in SCALES if s in g.index]
-    fig, ax = plt.subplots(figsize=(6.3, 3.3))
-    x = np.arange(len(sc))
+def diffs(df, methods, ref=PRIMARY):
+    pi = inst_mean(df)
+    out = {}
     for m in methods:
-        if m in g:
-            ax.plot(x, g.loc[sc, m], label=m, **style(m))
-    ax.set_xticks(x, sc, rotation=0)
-    ax.set_ylabel("Mean gap to lower bound (%)")
-    ax.set_ylim(bottom=0)
-    ax.legend(frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.12))
-    save(fig, "fig_gap_by_scale")
+        rows = []
+        for s in SCALES:
+            w = pi[pi.scale == s].pivot(index="instance_name", columns="method", values="gap_pct")
+            if m not in w or ref not in w:
+                rows.append((np.nan, np.nan, np.nan))
+                continue
+            ci = mean_ci(w[m].values, w[ref].values)
+            rows.append((ci["mean"], ci["t_lo"], ci["t_hi"]))
+        out[m] = np.array(rows)
+    return out
 
 
-def fig_anytime(A):
-    ref = pd.read_csv(RAW / "bench_reference.csv").set_index("instance_name")
-    picks = [s for s in ("Large", "XXL") if s in set(A.scale)]
-    if not picks:
-        return
-    fig, axes = plt.subplots(1, len(picks), figsize=(6.3, 2.8), squeeze=False)
-    fig.subplots_adjust(wspace=0.25)
-    for ax, scale in zip(axes[0], picks):
+def fig_gap_diff():
+    W = AR.gapify(AR.read("work_main.csv"))
+    wall = AR.gapify(AR.wall("main"))
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.4))
+    fig.subplots_adjust(wspace=0.32)
+    x = np.arange(len(SCALES))
+    panels = [(axes[0], W, ["PC-MALNS [MC-CRIP]", "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Gain]",
+                            "Opt-Rollback-Portfolio", "Opt-SeqLock-Portfolio", "Opt-Rollback", "Opt-SeqLock"],
+               "(a) LNS methods, work protocol"),
+              (axes[1], wall, ["HiGHS (1T, wall-matched)", "HiGHS+LP-Round (1T, wall-matched)",
+                               "HiGHS (1T, CPU-matched)", "HiGHS+LP-Round (1T, CPU-matched)"],
+               "(b) HiGHS 1.16.0, wall clock")]
+    for ax, d, ms, title in panels:
+        D = diffs(d, ms)
+        for j, m in enumerate(ms):
+            off = (j - (len(ms) - 1) / 2) * 0.05
+            v = D[m]
+            ax.errorbar(x + off, v[:, 0], yerr=[v[:, 0] - v[:, 1], v[:, 2] - v[:, 0]], capsize=2, elinewidth=0.8,
+                        label=SHORT.get(m, m), **style(m))
+        ax.axhline(0, color=INK2, linewidth=0.9)
+        ax.set_xticks(x, ["S", "M", "L", "XL", "XXL", "XXXL"])
+        ax.set_title(title, color=INK)
+        ax.set_xlabel("Scale")
+    axes[0].set_ylabel("Gap of method $-$ gap of PC-MALNS [GE] (pp)")
+    for ax in axes:
+        ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=1)
+    save(fig, "fig_gap_diff")
+
+
+def fig_anytime():
+    A = AR.wall("main")
+    H = A[A.family == "HiGHS"]
+    R = AR.ref_rows("main")
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 2.9))
+    fig.subplots_adjust(wspace=0.28)
+    for ax, scale in zip(axes, ("Large", "XXL")):
         a = A[(A.scale == scale) & (A.method == PRIMARY) & (A.rep == 0) & A.trace.notna()]
         T = float(a.wall_budget_s.iloc[0])
-        grid = np.linspace(0, T, 200)
-        cur_m, cur_h = [], []
+        grid = np.linspace(0, 3 * T, 300)
+        cur = {"m": [], "h": [], "w": []}
         for r in a.itertuples():
-            lb = r.lower_bound
-            tr = np.array(json.loads(r.trace))
-            cur_m.append([100 * (tr[tr[:, 0] <= t, 1][-1] - lb) / lb if np.any(tr[:, 0] <= t) else np.nan
-                          for t in grid])
-            htr = json.loads(ref.loc[r.instance_name, "trace"])
-            cur_h.append([100 * ([o for tt, o in htr if tt <= t][-1] - lb) / lb if any(tt <= t for tt, _ in htr)
-                          else np.nan for t in grid])
-        mm = np.array(cur_m, float)
-        okm = np.all(np.isfinite(mm), axis=0)   # start once every instance has a solution
-        ax.plot(grid[okm], mm[:, okm].mean(axis=0), label="PC-MALNS (W = 4)", **dict(style(PRIMARY), marker=None))
-        h = np.array(cur_h, float)
-        ok = np.all(np.isfinite(h), axis=0)
-        ax.plot(grid[ok], h[:, ok].mean(axis=0), label="HiGHS (1 thread)", **dict(style("HiGHS (1 thread)"), marker=None))
-        ax.set_title(f"{scale} (mean of {len(a)} instances)", color=INK)
+            lb = AR.LB[r.instance_name]
+            def at(tr, t):
+                v = [o for tt, o in tr if tt <= t]
+                return 100 * (v[-1] - lb) / lb if v else np.nan
+            cur["m"].append([at(json.loads(r.trace), t) for t in grid])
+            cur["h"].append([at(json.loads(R.loc[r.instance_name, "trace"]), t) for t in grid])
+            hw = H[(H.instance_name == r.instance_name) & (H.method == "HiGHS+LP-Round (1T, wall-matched)")]
+            tr = json.loads(hw.trace.iloc[0]) if len(hw) and isinstance(hw.trace.iloc[0], str) else []
+            cur["w"].append([at(tr, t) for t in grid])
+        for k, lab, m in (("m", "PC-MALNS [GE] (W = 4)", PRIMARY), ("h", "HiGHS reference run", "HiGHS (1T, wall-matched)"),
+                          ("w", "HiGHS + LP-Round, wall-matched", "HiGHS+LP-Round (1T, wall-matched)")):
+            arr = np.array(cur[k], float)
+            ok = np.all(np.isfinite(arr), axis=0)
+            if k != "h":          # the PC-MALNS run and the wall-matched HiGHS run stop at the budget
+                ok &= grid <= T * 1.0001
+            if ok.any():
+                ax.plot(grid[ok], arr[:, ok].mean(axis=0), label=lab, **dict(style(m), marker=None))
+        ax.axvline(T, color=INK2, linewidth=0.9, linestyle=":")
+        ax.text(T, 5.7, " budget", color=INK2, fontsize=9, va="top")
+        ax.set_title(f"{scale} ({len(a)} instances)", color=INK)
         ax.set_xlabel("Wall-clock time (s)")
-        ax.set_ylim(bottom=0)
-    axes[0][0].set_ylabel("Gap to lower bound (%)")
-    axes[0][0].legend(frameon=False)
+        ax.set_ylim(0, 6)
+    axes[0].set_ylabel("Gap to lower bound (%)")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 0.0))
     save(fig, "fig_anytime")
 
 
-def fig_rich_pools(B):
-    methods = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Opt-Rollback",
-               "HiGHS (1T, wall-matched)", "HiGHS (4T, wall-matched)"]
-    Ps = sorted(B.P.unique())
-    fig, axes = plt.subplots(1, len(Ps), figsize=(6.3, 3.0), squeeze=False, sharey=True)
-    for ax, P in zip(axes[0], Ps):
-        g = inst_mean(B[B.P == P], "gap_pct").groupby(["scale", "method"]).gap_pct.mean().unstack()
+def fig_progress():
+    W = AR.read("work_main.csv")
+    if W is None:
+        return
+    W = W[(W.method == PRIMARY) & W.trace.notna()]
+    fig, ax = plt.subplots(figsize=(4.6, 3.0))
+    grid = np.linspace(0, 1, 101)
+    for i, s in enumerate(SCALES):
+        curves = []
+        for r in W[W.scale == s].itertuples():
+            tr = np.array(json.loads(r.trace))
+            imp = tr[0] - tr[-1]
+            if imp <= 1e-9:
+                continue
+            frac = (tr[0] - tr) / imp
+            pos = np.linspace(0, 1, len(tr))
+            curves.append(np.interp(grid, pos, frac))
+        if curves:
+            ax.plot(grid, 100 * np.mean(curves, axis=0), color=PALETTE[i], linestyle=STYLES[i], label=s,
+                    marker=MARKERS[i], markevery=20, markersize=4)
+    ax.set_xlabel("Fraction of the epoch budget")
+    ax.set_ylabel("Share of the final improvement (%)")
+    ax.set_ylim(0, 102)
+    ax.legend(frameon=False, loc="lower right")
+    save(fig, "fig_progress")
+
+
+def fig_rich_pools():
+    d = AR.gapify(AR.wall("rich"))
+    methods = [PRIMARY, "PC-MALNS [MC-CRIP]", "Opt-Rollback", "HiGHS (1T, wall-matched)",
+               "HiGHS+LP-Round (1T, wall-matched)", "HiGHS (1T, CPU-matched)", "HiGHS+LP-Round (1T, CPU-matched)"]
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.0), sharey=True)
+    for ax, P in zip(axes, (20, 40)):
+        g = inst_mean(d[d.P == P]).groupby(["scale", "method"]).gap_pct.mean().unstack()
         sc = [s for s in SCALES if s in g.index]
         x = np.arange(len(sc))
         for m in methods:
             if m in g:
-                ax.plot(x, g.loc[sc, m], label=m, **style(m))
-        ax.set_xticks(x, sc, rotation=0)
-        ax.set_title(f"P = {P}", color=INK)
-    top = max(a.get_ylim()[1] for a in axes[0])
-    axes[0][0].set_ylim(0, top * 1.05)
-    axes[0][0].set_ylabel("Mean gap to lower bound (%)")
-    h, l = axes[0][0].get_legend_handles_labels()
+                ax.plot(x, g.loc[sc, m], label=SHORT.get(m, m), **style(m))
+        ax.set_xticks(x, sc)
+        ax.set_title(f"J = {P}", color=INK)
+    axes[0].set_ylim(bottom=0)
+    axes[0].set_ylabel("Mean gap to lower bound (%)")
+    h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, 0.0))
     save(fig, "fig_rich_pools")
 
 
-def fig_tightness(E, A):
-    d = pd.concat([E, A[(A.scale == "Large") & A.method.isin(set(E.method))]])
-    g = d.groupby(["instance_name", "eta", "method"], as_index=False).gap_pct.mean().groupby(
-        ["eta", "method"]).gap_pct.mean().unstack()
-    fig, ax = plt.subplots(figsize=(4.0, 3.0))
-    for m in [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Opt-Rollback", "Opt-SeqLock",
-              "Static-Quota", "HiGHS (1T, wall-matched)"]:
-        if m in g:
-            ax.plot(g.index, g[m], label=m, **style(m))
+def fig_tightness():
+    import json as _j
+    S = _j.loads((REPO_ROOT / "results" / "tables" / "summary.json").read_text())
+    if "sweep" not in S:
+        return
+    g = S["sweep"]["gap"]
+    etas = sorted(g, key=float)
+    fig, ax = plt.subplots(figsize=(4.2, 3.0))
+    for m in [PRIMARY, "PC-MALNS [MC-CRIP]", "Opt-Rollback", "Opt-SeqLock", "Static-Quota",
+              "HiGHS (1T, wall-matched)", "HiGHS+LP-Round (1T, wall-matched)"]:
+        ax.plot([float(e) for e in etas], [g[e].get(m, np.nan) for e in etas], label=SHORT.get(m, m), **style(m))
     ax.set_xlabel(r"Coupling tightness $\eta$")
     ax.set_ylabel("Mean gap to lower bound (%)")
     ax.set_ylim(bottom=0)
-    ax.legend(frameon=False, fontsize=9, loc="upper left", bbox_to_anchor=(1.02, 1.0))
+    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
     save(fig, "fig_tightness")
 
 
-def fig_scaling(S):
+def fig_scaling():
+    S = AR.read("bench_E_scaling.csv")
     fig, ax = plt.subplots(figsize=(3.6, 2.8))
     p = S[S["mode"] == "pool"]
     Ws = sorted(p.workers_W.unique())
@@ -173,12 +245,12 @@ def fig_scaling(S):
 
 
 def fig_counterfactual():
-    p = REPO_ROOT / "results" / "tables" / "bench_C_counterfactual.csv"
+    p = REPO_ROOT / "results" / "tables" / "work_counterfactual.csv"
     if not p.exists():
         return
     cf = pd.read_csv(p)
-    cf = cf[~cf.regime.str.contains("validation") & (cf.rule != "MC-CRIP")]
-    rules = ["BCRM-Greedy", "Greedy-Efficiency", "Greedy-Gain", "Opt-SeqLock", "Opt-Rollback", "Static-Quota"]
+    cf = cf[cf.rule != "MC-CRIP"]
+    rules = ["Greedy-Efficiency", "Quota-Surplus", "Greedy-Gain", "Opt-SeqLock", "Opt-Rollback", "Static-Quota"]
     regimes = list(dict.fromkeys(cf.regime))
     fig, ax = plt.subplots(figsize=(6.0, 3.0))
     w = 0.8 / len(regimes)
@@ -196,13 +268,14 @@ def fig_counterfactual():
     save(fig, "fig_counterfactual")
 
 
-def fig_acceptance(A):
-    l = A[A.family == "LNS"].copy()
-    l["acc"] = 100 * l.accepted_moves / l.proposals.where(l.proposals > 0)
-    methods = [m for m in [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Greedy-Gain-Portfolio",
-                           "Opt-Rollback-Portfolio", "Opt-SeqLock-Portfolio", "Opt-Rollback", "Opt-SeqLock",
-                           "Static-Quota", "Demand-Quota"] if m in set(l.method)]
-    g = l.groupby("method").acc.mean().reindex(methods)
+def fig_acceptance():
+    W = AR.read("work_main.csv")
+    if W is None:
+        return
+    W = W.copy()
+    W["acc"] = 100 * W.accepted_moves / W.proposals.where(W.proposals > 0)
+    methods = [m for m in AR.ALL_LNS if m in set(W.method)]
+    g = W.groupby("method").acc.mean().reindex(methods)
     fig, ax = plt.subplots(figsize=(5.4, 3.3))
     y = np.arange(len(methods))
     ax.barh(y, g.values, color=PALETTE[0], height=0.6)
@@ -211,24 +284,17 @@ def fig_acceptance(A):
     ax.set_yticks(y, methods)
     ax.invert_yaxis()
     ax.set_xlim(0, 105)
-    ax.set_xlabel("Accepted / improving proposals (%), all scales")
+    ax.set_xlabel("Committed / improving proposals (%), all scales")
     ax.grid(axis="y", visible=False)
     save(fig, "fig_acceptance")
 
 
 def main():
-    A, B, E, S = load("A"), load("B"), load("E_sweep"), load("E_scaling")
-    if A is not None:
-        fig_gap_by_scale(A)
-        fig_anytime(A)
-        fig_acceptance(A)
-    if B is not None:
-        fig_rich_pools(B)
-    if E is not None and A is not None:
-        fig_tightness(E, A)
-    if S is not None:
-        fig_scaling(S)
-    fig_counterfactual()
+    AR.LB = AR._lb()
+    # strict: a missing input is an error, never a silently skipped figure
+    for fn in (fig_gap_diff, fig_anytime, fig_progress, fig_rich_pools, fig_tightness, fig_counterfactual,
+               fig_acceptance):
+        fn()
 
 
 if __name__ == "__main__":

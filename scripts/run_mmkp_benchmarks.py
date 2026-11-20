@@ -1,8 +1,8 @@
 """
 Table D: public MMKP benchmarks (27 classical instances I07-I13 and INST01-INST20) as
-RPA-SH instances (src/mmkp.py), with the n groups split over K = 8 agents.
+MCA-SC instances (src/mmkp.py), with the n groups split over K = 8 agents.
 
-Methods: PC-MALNS [MC-CRIP], PC-MALNS [BCRM-Greedy], Opt-Rollback, Opt-SeqLock,
+Methods: PC-MALNS [MC-CRIP], PC-MALNS [Quota-Surplus], Opt-Rollback, Opt-SeqLock,
 Static-Quota; LP-Round start, M = 5, 5 runs per instance on the W = 4 agent pool with a
 2.0 s wall-clock budget. HiGHS (1 thread, 60 s) and HiGHS wall-matched (1 and 4
 threads), once per instance (deterministic).
@@ -40,7 +40,7 @@ K_AGENTS = 8
 REPS = 5
 BUDGET = 2.0
 T_HIGHS = 60.0
-METHODS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Opt-Rollback", "Opt-SeqLock", "Static-Quota"]
+METHODS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "Opt-Rollback", "Opt-SeqLock", "Static-Quota"]
 
 
 def mmkp_fields(inst, cost, bkv):

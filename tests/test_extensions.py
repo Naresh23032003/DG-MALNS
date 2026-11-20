@@ -1,4 +1,4 @@
-"""Structure tests for the RPA-SH-Sync generator and the MMKP conversion."""
+"""Structure tests for the MCA-SC-Pair generator and the MMKP conversion."""
 
 import numpy as np
 import pytest
@@ -25,7 +25,7 @@ def test_sync_instance_structure(seed):
         dock = s.D[k, m_hub + k // 2]
         assert set(np.unique(dock)) <= {0.0, 1.0, 2.0, 3.0}
         assert np.all(dock[:, : s.P - 1] == 0)
-    # regular patterns of requests without a transfer are unchanged
+    # regular patterns of requests without a paired pattern are unchanged
     no_tr = s.D[:, m_hub:, :, -1].sum(axis=1) == 0
     assert np.allclose(s.c[no_tr], base.c[no_tr])
     assert np.all(s.d[m_hub:] == np.floor(s.d[m_hub:])) and np.all(s.d[m_hub:] >= 1)
@@ -49,3 +49,21 @@ def test_mmkp_conversion_reproduces_certificate(name):
 
 def test_mmkp_all_names_present():
     assert len(NAMES) == 27
+
+
+def test_cf_all_logging_leaves_search_unchanged():
+    """The all-epoch counterfactual diagnostic must not change the trajectory of any barrier."""
+    from src.instance_generator import generate_instance
+    from src.engine import run_engine, method_configs
+    inst = generate_instance(4, 30, P=6, tightness=1.25, seed=7, scale="Small")
+    for nm in ("PC-MALNS [Greedy-Efficiency]", "PC-MALNS [MC-CRIP]"):
+        res = []
+        for flag in (False, True):
+            cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=5)[nm]
+            cfg.work_budget, cfg.time_budget_s, cfg.cf_all = 25 * 12, None, flag
+            res.append(run_engine(inst, cfg, 1.0, seed=7, rep=0))
+        assert res[0].best_obj == res[1].best_obj and res[0].epochs_run == res[1].epochs_run, nm
+        assert res[0].trace_obj == res[1].trace_obj, nm
+        if res[1].fast_path_epochs:
+            assert "cheapest" in res[1].nc_sum
+            assert res[1].nc_deviate.get("MC-CRIP", 0) == 0   # the exact barrier commits the cheapest levels

@@ -1,0 +1,20 @@
+\begin{table}[!htb]
+\centering
+\caption{Epochs and barrier time per scale. Work protocol: share of conflict epochs (\%) and mean barrier time per conflict epoch (ms) of PC-MALNS [Greedy-Efficiency] (GE) and PC-MALNS [MC-CRIP] (MC); the number of epochs is fixed by the budget. Wall-clock protocol (Section~\ref{sec:solver}): mean epochs reached within the budget by GE, MC and the single-proposal \texttt{Opt-Rollback} (OR).}
+\label{tab:barrier}
+\footnotesize
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+ & \multicolumn{4}{c}{Work protocol} & \multicolumn{3}{c}{Wall-clock protocol} \\
+\cmidrule(lr){2-5}\cmidrule(l){6-8}
+Scale & Conf.\ GE & Conf.\ MC & ms GE & ms MC & Epochs GE & Epochs MC & Epochs OR \\
+\midrule
+Small & 3.5 & 3.6 & 0.04 & 0.2 & 90.0 & 90.0 & 229.9 \\
+Medium & 6.9 & 5.5 & 0.07 & 4.8 & 73.5 & 72.9 & 191.3 \\
+Large & 13.2 & 9.6 & 0.12 & 18.4 & 62.4 & 60.6 & 164.6 \\
+X-Large & 16.6 & 13.3 & 0.16 & 54.5 & 52.6 & 50.1 & 141.3 \\
+XXL & 20.7 & 14.9 & 0.20 & 157.5 & 43.4 & 38.8 & 116.0 \\
+XXXL & 25.6 & 18.5 & 0.24 & 241.5 & 38.4 & 33.7 & 102.3 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -4,7 +4,7 @@ Step 2 benchmark suite (revision 2). Every job runs strictly one at a time.
 Primary method: PC-MALNS (Portfolio-Coordinated Multi-Agent LNS): LP-Round warm start,
 four-level portfolio (l = 0..3), M = 5 chained destroy-repair steps per level, no
 consolidation cap, no prices (lambda = 0), uniform quota s^(t)/K. Its two barrier
-resolution modes are MC-CRIP (exact) and BCRM-Greedy (polynomial).
+resolution modes are MC-CRIP (exact) and Quota-Surplus (polynomial).
 
 All LNS methods: 5 independent runs (rep = 0..4) per instance on a persistent W = 4
 agent pool (real wall clock; the per-scale wall-clock budget includes the charged
@@ -20,7 +20,7 @@ Tables (results/raw/bench_<table>.csv, resumable per instance):
   B          rich candidate pools, P in {20, 40}, Medium..XXL; reference HiGHS 30 s.
   C_direct   commit-rule isolation under the decentralized direct start
              (Medium/Large of table A, LB from table A).
-  C_sync     commit-rule isolation on RPA-SH-Sync (Medium/Large); reference 60 s.
+  C_sync     commit-rule isolation on MCA-SC-Pair (Medium/Large); reference 60 s.
   sync_check same as C_sync on the validation seeds 1..3 (run before C_sync).
   E_sweep    tightness sweep on Large, eta in {0.85, 1.05, 1.45} (1.25 = table A).
   E_ablation price and quota variants of PC-MALNS [MC-CRIP] on Large (LB from A).
@@ -58,14 +58,14 @@ SCALES = {"Small": (4, 30), "Medium": (8, 40), "Large": (12, 50), "X-Large": (16
           "XXL": (24, 100), "XXXL": (32, 125)}
 BUDGET = {"Small": 0.5, "Medium": 1.0, "Large": 1.5, "X-Large": 2.0, "XXL": 4.0, "XXXL": 6.0}
 PRIMARY = "PC-MALNS [MC-CRIP]"
-RENAME = {"MC-CRIP": PRIMARY, "BCRM-Greedy": "PC-MALNS [BCRM-Greedy]"}
-ALL_LNS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Greedy-Gain-Portfolio",
+RENAME = {}
+ALL_LNS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Efficiency]", "PC-MALNS [Greedy-Gain]",
            "Opt-Rollback", "Opt-SeqLock", "Opt-Rollback-Portfolio", "Opt-SeqLock-Portfolio",
            "Static-Quota", "Demand-Quota"]
-TABLE_B_LNS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Opt-Rollback", "Opt-SeqLock"]
-COMMIT_LNS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Greedy-Gain-Portfolio",
+TABLE_B_LNS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Efficiency]", "Opt-Rollback", "Opt-SeqLock"]
+COMMIT_LNS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Efficiency]", "PC-MALNS [Greedy-Gain]",
               "Opt-Rollback-Portfolio", "Opt-SeqLock-Portfolio", "Opt-Rollback", "Opt-SeqLock"]
-SWEEP_LNS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio", "Opt-Rollback",
+SWEEP_LNS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Efficiency]", "Opt-Rollback",
              "Opt-SeqLock", "Static-Quota"]
 
 COLS = ["table", "instance_name", "scale", "K", "N_total", "P", "m_global", "eta", "seed", "method", "family",

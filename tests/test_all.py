@@ -22,7 +22,7 @@ from src.feasibility import (
     TOL,
 )
 from src.operators import destroy_operator, regret2_repair_hard_quota
-from src.bcrm_solver import solve_mccrip_exact, solve_bcrm_greedy
+from src.barrier_solvers import solve_mccrip_exact, solve_quota_surplus
 from src.baselines import lp_round_start, rate_pct
 from src.engine import run_engine, method_configs, EngineConfig
 
@@ -97,7 +97,7 @@ def test_proposition_1_quota_safe_selection_is_feasible():
 def test_bcrm_and_mccrip_dominance_over_quota_safe():
     """
     Verify directly on synthetic and real portfolio tensors that both MC-CRIP and
-    BCRM-Greedy are always feasible and achieve objective delta <= sum_k Delta c_{k,1}^{(t)} <= 0.
+    Quota-Surplus are always feasible and achieve objective delta <= sum_k Delta c_{k,1}^{(t)} <= 0.
     """
     inst = generate_instance(K=8, N_per_agent=40, tightness=1.30, seed=102, scale="Medium")
     rng = np.random.default_rng(102)
@@ -126,7 +126,7 @@ def test_bcrm_and_mccrip_dominance_over_quota_safe():
         delta_slack[:, k, 3] = delta_slack[:, k, 2] + rng.uniform(0.5, 2.5, size=m)
 
     sel_exact, ms_exact = solve_mccrip_exact(delta_c, delta_slack)
-    sel_greedy, ms_greedy = solve_bcrm_greedy(
+    sel_greedy, ms_greedy = solve_quota_surplus(
         delta_c, delta_slack, dual_prices=np.ones(m), rho_t=5.0
     )
 
@@ -186,7 +186,7 @@ def test_mccrip_dominates_sequential_lock_and_static_quota():
 
 def test_mccrip_enumeration_and_highs_paths_agree():
     """Above MAX_ENUM_STATES the HiGHS path returns the same optimum as full enumeration."""
-    import src.bcrm_solver as bs
+    import src.barrier_solvers as bs
     rng = np.random.default_rng(11)
     for _ in range(20):
         K, m, L1 = 7, 4, 4                       # 4^7 = 16,384 > 4,096 combinations
@@ -286,7 +286,7 @@ def test_budgets_and_independent_replicates():
     """A CPU budget is respected; rep = 0 is reproducible and rep = 1 gives a different,
     reproducible run."""
     inst = generate_instance(K=4, N_per_agent=30, tightness=1.25, seed=106, scale="Small")
-    cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=5)["MC-CRIP"]
+    cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=5)["PC-MALNS [MC-CRIP]"]
     cfg.time_budget_s, cfg.budget_clock = 0.3, "cpu"
     r = run_engine(inst, cfg, 1.0, seed=106)
     assert r.cpu_time_s >= 0.3 and r.epochs_run >= 1
@@ -302,7 +302,7 @@ def test_agent_pool_reproduces_serial_trajectory():
     the same trajectory as serial execution."""
     from src.agent_pool import AgentPool
     inst = generate_instance(K=8, N_per_agent=40, tightness=1.25, seed=107, scale="Medium")
-    cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=5, epochs=8)["MC-CRIP"]
+    cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=5, epochs=8)["PC-MALNS [MC-CRIP]"]
     serial = run_engine(inst, cfg, 1.0, seed=107, keep_patterns=True)
     pool = AgentPool(3)
     try:

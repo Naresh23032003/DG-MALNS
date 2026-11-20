@@ -88,3 +88,15 @@ Before every unit the power source is checked. On battery power the run pauses u
 - The column `highs_killed` was added to `wall_rich.csv` and `wall_reference.csv`. It is empty for earlier rows, all of which finished within their limits.
 
 Nothing else changes. Finished instances are kept, and the interrupted instance s103 is rerun from the start, as the resumption rule above provides.
+
+## Addendum, 2026-11-20: sensitivity rerun of the slow stretch in `rich`
+
+Written after phases 1 to 3 finished and before any run of this addendum.
+
+**What happened.** Calibrations 15, 16 and 17 of `rich` (17 Nov, 21:03 to 23:11 IST) were 73 to 77% slower in both wall-clock and CPU time than the first calibration. Calibration 14 (19:57) and calibration 18 (00:11) were normal. The objective was identical every time. macOS recorded no thermal or performance warning, and the machine stayed on AC power. The slow stretch coincides with whole cells of the design: every Medium and Large instance with P = 40 ran slow, and every Medium and Large instance with P = 20 ran at normal speed. Comparisons within an instance are not affected, because all methods of an instance ran back to back. Absolute times and any comparison across P are.
+
+**What is rerun.** Every `rich` instance whose rows carry calibration index 14, 15, 16 or 17: the 40 instances run between the last normal calibration before the slow stretch and the first normal one after it. The rule uses only the calibration indices, not the results. Job `rich_rerun` in `scripts/run_wallclock_uniform.py` reruns them with the identical design: the same methods, budgets, HiGHS units, 300 s reference run and random orders (the same order seeds). Calibration runs at the start, after every 10 instances and at the end, as in the main design.
+
+**Outputs.** `results/raw/wall_rich_rerun.csv`; reference runs are appended to `wall_reference.csv` with `job = rich_rerun`.
+
+**Use.** The original `rich` rows remain the primary result, as the drift rule of this plan requires; no row is excluded. The rerun is reported next to them as a sensitivity analysis: per-instance verdicts in both runs, and absolute times and gaps from the rerun where the original instance ran in the slow stretch. Any comparison across P on the `rich` pools uses the rerun rows for these 40 instances and states so.

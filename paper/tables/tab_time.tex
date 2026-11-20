@@ -1,0 +1,32 @@
+\begin{table}[!htb]
+\centering
+\caption{Time to target and primal integral (wall-clock protocol, medians over 10 instances). Budget: wall clock of a PC-MALNS [Greedy-Efficiency] run; HiGHS: time the one-thread HiGHS reference run needs to reach the mean PC-MALNS [Greedy-Efficiency] objective of the instance; Ratio: median of HiGHS time over budget (above 1: HiGHS needs longer). The reference run reached the target on every instance (0 misses). PI: primal integral over the budget, divided by the budget (mean; lower is better), with primal gap 1 before the first solution. Rich pools: the 40 instances of the slow stretch use the rerun (Section~\ref{sec:runconditions}).}
+\label{tab:time}
+\footnotesize
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Scale & Budget (s) & HiGHS (s) & Ratio & PI \pge & PI HiGHS \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{Main benchmark ($J = 6$)}} \\
+Small & 0.50 & 0.33 & 0.66 & 0.038 & 0.060 \\
+Medium & 1.01 & 0.84 & 0.84 & 0.033 & 0.061 \\
+Large & 1.51 & 1.68 & 1.11 & 0.034 & 0.066 \\
+X-Large & 2.02 & 2.64 & 1.31 & 0.036 & 0.059 \\
+XXL & 4.04 & 9.31 & 2.30 & 0.038 & 0.050 \\
+XXXL & 6.08 & 10.85 & 1.78 & 0.042 & 0.058 \\
+\multicolumn{6}{@{}l}{\textit{MCA-SC-Pair}} \\
+Medium & 1.01 & 0.84 & 0.83 & & \\
+Large & 1.51 & 1.77 & 1.17 & & \\
+\multicolumn{6}{@{}l}{\textit{Rich pools, $J = 20$}} \\
+Medium & 1.01 & 2.66 & 2.63 & & \\
+Large & 1.52 & 5.03 & 3.32 & & \\
+X-Large & 2.02 & 8.75 & 4.32 & & \\
+XXL & 4.07 & 17.97 & 4.41 & & \\
+\multicolumn{6}{@{}l}{\textit{Rich pools, $J = 40$}} \\
+Medium & 1.01 & 4.52 & 4.49 & & \\
+Large & 1.53 & 13.30 & 8.70 & & \\
+X-Large & 2.03 & 12.92 & 6.34 & & \\
+XXL & 4.08 & 32.65 & 8.03 & & \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,21 @@
+\begin{table}[!htb]
+\centering
+\caption{Commit-rule isolation: PC-MALNS [Greedy-Efficiency] against each rule per regime (Table~\ref{tab:commit}). Diff $=$ PC-MALNS [Greedy-Efficiency] $-$ rule (percentage points; negative favours PC-MALNS [Greedy-Efficiency]); W/T/L over the 20 instances; $^{*}$: exact Wilcoxon $p < 0.05$ after Holm adjustment over all 21 comparisons.}
+\label{tab:commit_tests}
+\footnotesize
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+ & \multicolumn{2}{c}{LP-Round start} & \multicolumn{2}{c}{Direct start} & \multicolumn{2}{c}{MCA-SC-Pair} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
+Rule & Diff & W/T/L & Diff & W/T/L & Diff & W/T/L \\
+\midrule
+PC-MALNS [MC-CRIP] & $-$0.055 & 16/0/4$^{*}$ & $-$0.404 & 16/0/4$^{*}$ & $-$0.074 & 15/0/5$^{*}$ \\
+PC-MALNS [Quota-Surplus] & $-$0.070 & 18/0/2$^{*}$ & $-$0.214 & 16/0/4$^{*}$ & $-$0.073 & 18/0/2$^{*}$ \\
+PC-MALNS [Greedy-Gain] & $-$0.053 & 17/0/3$^{*}$ & $-$0.620 & 18/0/2$^{*}$ & $-$0.086 & 15/0/5$^{*}$ \\
+Opt-Rollback-Portfolio & $-$0.237 & 20/0/0$^{*}$ & $-$2.696 & 20/0/0$^{*}$ & $-$0.280 & 20/0/0$^{*}$ \\
+Opt-SeqLock-Portfolio & $-$0.226 & 20/0/0$^{*}$ & $-$2.178 & 20/0/0$^{*}$ & $-$0.238 & 20/0/0$^{*}$ \\
+Opt-Rollback & $-$0.232 & 19/0/1$^{*}$ & $-$1.687 & 20/0/0$^{*}$ & $-$0.277 & 20/0/0$^{*}$ \\
+Opt-SeqLock & $-$0.239 & 20/0/0$^{*}$ & $-$1.944 & 20/0/0$^{*}$ & $-$0.258 & 20/0/0$^{*}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

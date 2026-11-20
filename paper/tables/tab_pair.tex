@@ -1,0 +1,30 @@
+\begin{table}[!htb]
+\centering
+\caption{MCA-SC-Pair under the wall-clock protocol (Medium and Large, 10 test instances each, 1 and 1.5 s on $W = 4$ processes): mean gap (\%) and comparison with PC-MALNS [Greedy-Efficiency] (exact Wilcoxon $p$ Holm-adjusted over the 14 comparisons). HiGHS as in Table~\ref{tab:solver}; reference run 60 s.}
+\label{tab:pair}
+\scriptsize
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Method & Medium & Large & All & Diff & W/T/L & $p_{\text{Holm}}$ \\
+\midrule
+LP-Round & 4.57 & 3.72 & 4.15 & $-$2.159 & 20/0/0 & $<$0.0001 \\
+\textbf{PC-MALNS [Greedy-Efficiency]} & 2.16 & 1.81 & 1.99 &  &  &  \\
+\addlinespace
+PC-MALNS [MC-CRIP] & 2.23 & 1.90 & 2.06 & $-$0.077 & 15/0/5 & 0.0061 \\
+PC-MALNS [Quota-Surplus] & 2.26 & 1.86 & 2.06 & $-$0.071 & 17/0/3 & 0.0061 \\
+PC-MALNS [Greedy-Gain] & 2.22 & 1.92 & 2.07 & $-$0.087 & 15/0/5 & 0.0169 \\
+\addlinespace
+Opt-Rollback-Portfolio & 2.43 & 2.10 & 2.27 & $-$0.279 & 20/0/0 & $<$0.0001 \\
+Opt-SeqLock-Portfolio & 2.40 & 2.06 & 2.23 & $-$0.241 & 20/0/0 & $<$0.0001 \\
+Opt-Rollback & 2.42 & 2.10 & 2.26 & $-$0.273 & 20/0/0 & $<$0.0001 \\
+Opt-SeqLock & 2.41 & 2.08 & 2.24 & $-$0.257 & 20/0/0 & $<$0.0001 \\
+\addlinespace
+HiGHS (1T, wall-matched) & 1.17 & 1.73 & 1.45 & +0.536 & 4/0/16 & 0.0169 \\
+HiGHS (4T, wall-matched) & 1.17 & 1.72 & 1.44 & +0.544 & 4/0/16 & 0.0169 \\
+HiGHS\,+\,LP-Round (1T, wall-matched) & 1.14 & 1.92 & 1.53 & +0.455 & 5/0/15 & 0.0296 \\
+HiGHS (1T, CPU-matched) & 0.96 & 0.62 & 0.79 & +1.195 & 0/0/20 & $<$0.0001 \\
+HiGHS (5s) & 0.87 & 0.62 & 0.75 & +1.240 & 0/0/20 & $<$0.0001 \\
+HiGHS (60s) & 0.54 & 0.43 & 0.48 &  &  &  \\
+\bottomrule
+\end{tabular}
+\end{table}

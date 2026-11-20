@@ -12,7 +12,7 @@ Implements:
 
 from typing import Tuple, Optional
 import numpy as np
-from src.instance_generator import CoupledRoutingInstance
+from src.instance_generator import AllocationInstance
 from src.feasibility import (
     compute_agent_global_usage,
     compute_agent_local_usage,
@@ -33,7 +33,7 @@ MAX_NET_UPGRADES = 3  # per-epoch net upgrade batch per worker (identical for ev
 
 # Tie-breaking weight of the non-negative prices in the quota-safe repair (l = 1):
 # eff_c = c + TIE_BREAK_EPS * lambda^T D. Small relative to the repair noise, so the
-# l = 1 repair minimizes true primal cost and only prefers less congested hubs when
+# l = 1 repair minimizes true primal cost and only prefers less congested shared resources when
 # primal savings are similar.
 TIE_BREAK_EPS = 0.05
 # Release moves of the donor repair (l = 2) before one compensating upgrade.
@@ -41,7 +41,7 @@ DONOR_RELEASES = 2
 
 
 def base_repair_best_of_two(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     incumbent_k: np.ndarray,
     partial_k: np.ndarray,
@@ -78,7 +78,7 @@ def base_repair_best_of_two(
 
 
 def destroy_operator(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     patterns_k: np.ndarray,
     rng: np.random.Generator,
@@ -116,13 +116,13 @@ def destroy_operator(
         if dual_prices is not None and np.any(dual_prices > TOL):
             # Dual-guided destroy: remove coupled requests with the highest
             # dual-to-saving ratio ((lambda^T D_{k,i,p} + 0.1) / (saving + 1)),
-            # i.e. low-saving requests that sit on congested hubs.
+            # i.e. low-saving requests that sit on congested shared resources.
             dual_burden = instance.D[k, :, active_coupled, p_act] @ dual_prices
             score = (dual_burden + 0.1) / (saving + 1.0)
             score = score + rng.uniform(0.0, 1e-3, size=len(active_coupled))
         else:
             # No global prices: coupled requests are ranked by local cost alone
-            # (local wave burden per unit of saving).
+            # (local burden per unit of saving).
             a_burden = 2.0 * np.sum(instance.A[k, :, active_coupled, p_act], axis=1)
             score = a_burden / np.maximum(1.0, saving)
             score = score + rng.uniform(0.0, 0.25, size=len(active_coupled))
@@ -146,7 +146,7 @@ def destroy_operator(
 
 
 def _vectorized_swap_or_upgrade_fallback(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     incumbent_k: np.ndarray,
     d_idx: np.ndarray,
@@ -157,7 +157,7 @@ def _vectorized_swap_or_upgrade_fallback(
     """
     Fast 3D NumPy vectorized single-request upgrade or 1-for-1 inter-request swap
     within destroyed_indices when multi-request greedy reinsertion gets blocked by
-    local wave capacities. Guarantees strict local and global quota feasibility.
+    local capacities. Guarantees strict local and global quota feasibility.
     """
     inc_global = compute_agent_global_usage(instance, k, incumbent_k)
     inc_local = compute_agent_local_usage(instance, k, incumbent_k)
@@ -239,7 +239,7 @@ def _vectorized_swap_or_upgrade_fallback(
 
 
 def regret2_repair_hard_quota(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     incumbent_k: np.ndarray,
     partial_k: np.ndarray,
@@ -346,7 +346,7 @@ def regret2_repair_hard_quota(
 
 
 def regret2_repair_proximal_al(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     incumbent_k: np.ndarray,
     partial_k: np.ndarray,
@@ -472,24 +472,24 @@ def regret2_repair_proximal_al(
 
 
 def donor_rebalance_repair(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     incumbent_k: np.ndarray,
     hub_weights: np.ndarray,
     n_release: int = DONOR_RELEASES,
 ) -> np.ndarray:
     """
-    Slack-releasing (donor / hub-rebalancing) repair for portfolio level l = 2.
+    Slack-releasing (donor / resource-rebalancing) repair for portfolio level l = 2.
 
-    Hub weights w >= 0: w = lambda^{(t)} with dual prices, w = 1 without (No-Duals).
+    Resource weights w >= 0: w = lambda^{(t)} with dual prices, w = 1 without (No-Duals).
     1. Release: up to ``n_release`` currently coupled requests with the largest
-       weighted hub burden per unit of saving, w^T D_{k,i,p_i} / (c_{k,i,0} - c_{k,i,p_i} + 1),
-       are each moved to the cheapest pattern p' (another hub pattern or p = 0) with
+       weighted shared burden per unit of saving, w^T D_{k,i,p_i} / (c_{k,i,0} - c_{k,i,p_i} + 1),
+       are each moved to the cheapest pattern p' (another pattern p >= 1 or p = 0) with
        w^T D_{k,i,p'} < w^T D_{k,i,p_i}.
     2. Compensate: one upgrade of another request (i, p'') with the largest cost
-       saving whose added weighted hub usage does not exceed the weighted usage
-       released in step 1, so the net weighted hub usage of the move is <= 0.
-    Local wave capacities b_k are kept throughout. Global feasibility of the move is
+       saving whose added weighted shared usage does not exceed the weighted usage
+       released in step 1, so the net weighted shared usage of the move is <= 0.
+    Local capacities b_k are kept throughout. Global feasibility of the move is
     checked by the barrier through delta_{r,k,2}.
     """
     y = incumbent_k.copy()

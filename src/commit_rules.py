@@ -3,26 +3,26 @@ Barrier commit rules applied to one and the same worker portfolio.
 
 Inputs at epoch t (all rules):
     delta_c   (K, L+1)   cost change c_k^T (y_k^{(t,l)} - x_k^{(t)})
-    raw_dD    (m, K, L+1) hub usage change D_k (y_k^{(t,l)} - x_k^{(t)})
-    s_t       (m,)       residual hub slack s^{(t)} = d - sum_k D_k x_k^{(t)}
+    raw_dD    (m, K, L+1) shared usage change D_k (y_k^{(t,l)} - x_k^{(t)})
+    s_t       (m,)       residual shared slack s^{(t)} = d - sum_k D_k x_k^{(t)}
     q_all     (m, K)     slack quotas q_k^{(t)} with sum_k q_k^{(t)} = s^{(t)}
 
 Every rule returns a selection sel (K,) with sel[k] = l (commit level l of worker k)
 or sel[k] = KEEP (= -1: keep the incumbent x_k^{(t)}). Every returned selection
-satisfies sum_k raw_dD[:, k, sel_k] <= s_t (hub feasibility), checked by
+satisfies sum_k raw_dD[:, k, sel_k] <= s_t (shared-capacity feasibility), checked by
 ``selection_feasible``.
 
 Rules (mechanism names used in all outputs):
-    MC-CRIP            exact multiple-choice IP (src/bcrm_solver.solve_mccrip_exact)
-    BCRM-Greedy        quota-safe start + efficiency-sorted upgrades (solve_bcrm_greedy)
+    MC-CRIP            exact multiple-choice IP (src/barrier_solvers.solve_mccrip_exact)
+    Quota-Surplus        quota-safe start + efficiency-sorted upgrades (solve_quota_surplus)
     Greedy-Gain        all workers at l = 0; upgrades (k, l) sorted by cost reduction,
-                       committed while the hub slack holds (at most one per worker)
-    Greedy-Efficiency  as Greedy-Gain, sorted by gain per unit of extra hub usage
+                       committed while the shared slack holds (at most one per worker)
+    Greedy-Efficiency  as Greedy-Gain, sorted by gain per unit of extra shared usage
     Opt-Rollback       each worker proposes its cheapest level; if the batch does not
                        fit, it is rolled back and one random improving worker commits
-                       (PALNS-style)
+                       (batch-rollback adaptation)
     Opt-SeqLock        cheapest levels checked in a random arrival order and committed
-                       while they fit (DROP-LNS-style)
+                       while they fit (sequential-lock adaptation)
     Static-Quota       every worker commits its quota-safe level l = 1
 """
 
@@ -30,10 +30,10 @@ from typing import Dict, Optional
 import numpy as np
 
 from src.feasibility import TOL
-from src.bcrm_solver import solve_mccrip_exact, solve_bcrm_greedy
+from src.barrier_solvers import solve_mccrip_exact, solve_quota_surplus
 
 KEEP = -1
-RULES = ("MC-CRIP", "BCRM-Greedy", "Greedy-Gain", "Greedy-Efficiency",
+RULES = ("MC-CRIP", "Quota-Surplus", "Greedy-Gain", "Greedy-Efficiency",
          "Opt-Rollback", "Opt-SeqLock", "Static-Quota")
 
 
@@ -66,7 +66,7 @@ def selection_feasible(raw_dD: np.ndarray, s_t: np.ndarray, sel: np.ndarray) -> 
 def _greedy_from_level0(delta_c, raw_dD, s_t, key):
     """All workers start at l = 0 (incumbent or dominating donor, D-change <= 0);
     upgrades (k, l) with lower cost than l = 0 are sorted by ``key`` (descending)
-    and committed while the remaining hub slack allows (one upgrade per worker)."""
+    and committed while the remaining shared slack allows (one upgrade per worker)."""
     m, K, nl = raw_dD.shape
     sel = np.zeros(K, dtype=np.int64)
     rem = s_t - selection_usage(raw_dD, sel)
@@ -106,7 +106,7 @@ def _cheapest(delta_c):
 
 
 def opt_rollback(delta_c, raw_dD, s_t, rng: np.random.Generator, expected: bool = False):
-    """PALNS-style rule. With expected=True returns the expected cost change over the
+    """Batch-rollback rule (our adaptation). With expected=True returns the expected cost change over the
     uniformly random choice of the single committing worker (for counterfactuals)."""
     sel = _cheapest(delta_c)
     if selection_feasible(raw_dD, s_t, sel):
@@ -128,7 +128,7 @@ def opt_rollback(delta_c, raw_dD, s_t, rng: np.random.Generator, expected: bool 
 
 
 def opt_seqlock(delta_c, raw_dD, s_t, rng: np.random.Generator):
-    """DROP-LNS-style rule: cheapest levels in a random arrival order, committed while they fit."""
+    """Sequential-lock rule (our adaptation): cheapest levels in a random arrival order, committed while they fit."""
     cheap = _cheapest(delta_c)
     sel = np.full_like(cheap, KEEP)
     rem = s_t.copy()
@@ -143,14 +143,15 @@ def static_quota(delta_c, raw_dD, s_t):
     return np.ones(delta_c.shape[0], dtype=np.int64)
 
 
-def apply_rule(rule: str, delta_c, raw_dD, s_t, q_all, rng, lambda_t=None, rho_t=0.0):
+def apply_rule(rule: str, delta_c, raw_dD, s_t, q_all, rng, lambda_t=None, rho_t=0.0,
+               mccrip_time_limit: float = 2.0):
     """Selection of ``rule`` on this portfolio (KEEP = -1 allowed)."""
     if rule == "MC-CRIP":
-        sel, _ = solve_mccrip_exact(delta_c, raw_dD - q_all[:, :, None])
+        sel, _ = solve_mccrip_exact(delta_c, raw_dD - q_all[:, :, None], time_limit_s=mccrip_time_limit)
         return sel
-    if rule == "BCRM-Greedy":
+    if rule == "Quota-Surplus":
         lam = np.zeros(raw_dD.shape[0]) if lambda_t is None else lambda_t
-        sel, _ = solve_bcrm_greedy(delta_c, raw_dD - q_all[:, :, None], lam, rho_t)
+        sel, _ = solve_quota_surplus(delta_c, raw_dD - q_all[:, :, None], lam, rho_t)
         return sel
     if rule == "Greedy-Gain":
         return greedy_gain(delta_c, raw_dD, s_t)
@@ -166,14 +167,14 @@ def apply_rule(rule: str, delta_c, raw_dD, s_t, q_all, rng, lambda_t=None, rho_t
 
 
 def counterfactual_costs(delta_c, raw_dD, s_t, q_all, lambda_t, rho_t, rng,
-                         n_perm: int = 20) -> Dict[str, float]:
+                         n_perm: int = 20, mccrip_time_limit: float = 2.0) -> Dict[str, float]:
     """Single-epoch cost change Delta C^{(t)} of every rule on this identical portfolio.
     Random rules are evaluated by their expectation (Opt-Rollback, exact) or by the
     mean over n_perm arrival orders (Opt-SeqLock). Uses its own generator, so the
     run trajectory is unchanged."""
     out = {}
-    for rule in ("MC-CRIP", "BCRM-Greedy", "Greedy-Gain", "Greedy-Efficiency", "Static-Quota"):
-        sel = apply_rule(rule, delta_c, raw_dD, s_t, q_all, rng, lambda_t, rho_t)
+    for rule in ("MC-CRIP", "Quota-Surplus", "Greedy-Gain", "Greedy-Efficiency", "Static-Quota"):
+        sel = apply_rule(rule, delta_c, raw_dD, s_t, q_all, rng, lambda_t, rho_t, mccrip_time_limit)
         assert selection_feasible(raw_dD, s_t, sel), rule
         out[rule] = selection_cost(delta_c, sel)
     out["Opt-Rollback"] = opt_rollback(delta_c, raw_dD, s_t, rng, expected=True)[1]

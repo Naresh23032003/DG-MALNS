@@ -1,8 +1,8 @@
 """
 Mechanism diagnostic for the barrier rules (Table C instances: Medium + Large, test
-seeds 101..110, eta = 1.25, P = 6): residual hub slack along the trajectory.
+seeds 101..110, eta = 1.25, P = 6): residual shared slack along the trajectory.
 
-For PC-MALNS [MC-CRIP], PC-MALNS [BCRM-Greedy] and Greedy-Efficiency-Portfolio under the
+For PC-MALNS [MC-CRIP], PC-MALNS [Quota-Surplus] and PC-MALNS [Greedy-Efficiency] under the
 LP-Round and direct starts, 5 runs per instance on the W = 4 pool with the Step 2
 budgets. Logged per run: time-averaged mean normalized slack (mean_r s_r / d_r),
 time-averaged bottleneck slack (min_r s_r / d_r), epochs, accepted moves, conflict
@@ -28,7 +28,7 @@ from src.agent_pool import AgentPool
 from scripts.run_benchmark import configs, ref_table, SCALES, BUDGET, TEST_SEEDS, PRIMARY
 
 RAW = REPO_ROOT / "results" / "raw"
-METHODS = [PRIMARY, "PC-MALNS [BCRM-Greedy]", "Greedy-Efficiency-Portfolio"]
+METHODS = [PRIMARY, "PC-MALNS [Quota-Surplus]", "PC-MALNS [Greedy-Efficiency]"]
 
 
 def main():

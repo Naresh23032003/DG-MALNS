@@ -1,22 +1,22 @@
 """
 Exact Primal and Dual Feasibility Verifier and Objective Evaluator
-for RPA-SH within numerical tolerance 1e-6.
+for MCA-SC within numerical tolerance 1e-6.
 """
 
 from typing import Tuple, Dict, Any
 import numpy as np
-from src.instance_generator import CoupledRoutingInstance
+from src.instance_generator import AllocationInstance
 
 TOL = 1e-6
 
 
-def evaluate_agent_cost(instance: CoupledRoutingInstance, k: int, patterns_k: np.ndarray) -> float:
+def evaluate_agent_cost(instance: AllocationInstance, k: int, patterns_k: np.ndarray) -> float:
     """Compute local primal cost c_k^T x_k for agent k."""
     i_idx = np.arange(instance.N_per_agent)
     return float(np.sum(instance.c[k, i_idx, patterns_k]))
 
 
-def evaluate_global_cost(instance: CoupledRoutingInstance, patterns: np.ndarray) -> float:
+def evaluate_global_cost(instance: AllocationInstance, patterns: np.ndarray) -> float:
     """Compute global primal objective C(x) = sum_{k=1}^K c_k^T x_k."""
     k_idx = np.arange(instance.K)[:, None]
     i_idx = np.arange(instance.N_per_agent)[None, :]
@@ -24,7 +24,7 @@ def evaluate_global_cost(instance: CoupledRoutingInstance, patterns: np.ndarray)
 
 
 def compute_agent_global_usage(
-    instance: CoupledRoutingInstance, k: int, patterns_k: np.ndarray
+    instance: AllocationInstance, k: int, patterns_k: np.ndarray
 ) -> np.ndarray:
     """Compute D_k x_k in R^{m_global} for agent k."""
     i_idx = np.arange(instance.N_per_agent)
@@ -33,7 +33,7 @@ def compute_agent_global_usage(
 
 
 def compute_all_global_usage(
-    instance: CoupledRoutingInstance, patterns: np.ndarray
+    instance: AllocationInstance, patterns: np.ndarray
 ) -> np.ndarray:
     """Compute sum_{k=1}^K D_k x_k in R^{m_global}."""
     total_usage = np.zeros(instance.m_global, dtype=np.float64)
@@ -44,14 +44,14 @@ def compute_all_global_usage(
 
 
 def compute_global_slack(
-    instance: CoupledRoutingInstance, patterns: np.ndarray
+    instance: AllocationInstance, patterns: np.ndarray
 ) -> np.ndarray:
     """Compute residual global coupling slack s = d - sum_{k=1}^K D_k x_k."""
     return instance.d - compute_all_global_usage(instance, patterns)
 
 
 def compute_agent_local_usage(
-    instance: CoupledRoutingInstance, k: int, patterns_k: np.ndarray
+    instance: AllocationInstance, k: int, patterns_k: np.ndarray
 ) -> np.ndarray:
     """Compute A_k x_k in R^{m_local} for agent k."""
     i_idx = np.arange(instance.N_per_agent)
@@ -60,7 +60,7 @@ def compute_agent_local_usage(
 
 
 def is_agent_locally_feasible(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     k: int,
     patterns_k: np.ndarray,
     tol: float = TOL,
@@ -68,7 +68,7 @@ def is_agent_locally_feasible(
     """
     Check if patterns_k represents a valid binary assignment in X_k:
     1. Valid pattern indices in {0, ..., P-1} (representing sum_p x_{k,i,p} = 1, x in {0,1}).
-    2. Local depot wave capacities: A_k x_k <= b_k + tol.
+    2. Local capacities: A_k x_k <= b_k + tol.
     """
     if patterns_k.shape != (instance.N_per_agent,):
         return False
@@ -81,7 +81,7 @@ def is_agent_locally_feasible(
 
 
 def verify_solution_feasibility(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
     patterns: np.ndarray,
     tol: float = TOL,
 ) -> Tuple[bool, Dict[str, Any]]:
@@ -101,7 +101,7 @@ def verify_solution_feasibility(
     if max_assign_err > tol:
         return False, {"reason": "Assignment constraint violated", "max_assign_err": max_assign_err}
 
-    # Verify local depot wave capacities A_k x_k <= b_k (Equation 3)
+    # Verify local capacities A_k x_k <= b_k (Equation 3)
     max_local_viol = 0.0
     for k in range(instance.K):
         if not is_agent_locally_feasible(instance, k, patterns[k], tol=tol):

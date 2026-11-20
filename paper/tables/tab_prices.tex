@@ -1,0 +1,23 @@
+\begin{table}[!htb]
+\centering
+\caption{Price and quota ablation of PC-MALNS [Greedy-Efficiency] (work protocol, 60 instances per block, 5 runs each): mean gap (\%), Diff $=$ default $-$ variant (pp; positive: the variant is better), W/T/L of the default, exact Wilcoxon $p$, Holm-adjusted over the six variants on the test instances. The fresh block repeats the best variant on 60 new instances under the plan \texttt{results/price\_plan.md}, committed before the runs.}
+\label{tab:prices}
+\footnotesize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Variant & Gap & Diff & W/T/L & $p$ \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Test instances (seeds 101--110)}} \\
+No prices, static quota (default) & 1.468 & & & \\
+Heuristic prices, static quota & 1.433 & +0.035 & 17/0/43 & 0.0002 \\
+Heuristic prices, dynamic quota & 1.437 & +0.031 & 17/0/43 & 0.0011 \\
+MC-CRIP LP duals, static quota & 1.428 & +0.040 & 11/0/49 & $<$0.0001 \\
+MC-CRIP LP duals, dynamic quota & 1.436 & +0.031 & 15/0/45 & 0.0011 \\
+No prices, dynamic quota & 1.465 & +0.002 & 31/1/28 & 0.9791 \\
+No prices, demand quota & 1.452 & +0.016 & 26/0/34 & 0.2776 \\
+\multicolumn{5}{@{}l}{\textit{Fresh instances (seeds 301--310), declared test, gap to the LP bound}} \\
+No prices, static quota (default) & 1.838 & & & \\
+MC-CRIP LP duals, static quota & 1.821 & +0.017 & 24/0/36 & 0.0649 \\
+\bottomrule
+\end{tabular}
+\end{table}

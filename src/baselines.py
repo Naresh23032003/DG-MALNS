@@ -1,8 +1,8 @@
 """
-Shared LP components of the RPA-SH pipeline.
+Shared LP components of the MCA-SC pipeline.
 
-build_block_angular_matrices   sparse constraint matrix of the RPA-SH integer program
-solve_lp_relaxation            LP relaxation (bound, hub duals, primal solution)
+build_block_angular_matrices   sparse constraint matrix of the MCA-SC integer program
+solve_lp_relaxation            LP relaxation (bound, coupling-row duals, primal solution)
 lp_round_start                 LP-Round warm start: LP relaxation, greedy rounding by
                                reduced-cost saving under d and b_k, and one local
                                upgrade pass; its time is charged to every LNS run
@@ -16,7 +16,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import linprog
 
-from src.instance_generator import CoupledRoutingInstance
+from src.instance_generator import AllocationInstance
 from src.feasibility import TOL
 
 MILP_REL_GAP = 1e-4
@@ -28,7 +28,7 @@ def rate_pct(num: int, den: int) -> float:
 
 
 def build_block_angular_matrices(
-    instance: CoupledRoutingInstance,
+    instance: AllocationInstance,
 ) -> Tuple[np.ndarray, sp.csc_matrix, np.ndarray, np.ndarray]:
     """
     Construct the sparse block-angular constraint matrix for Equations (1)-(5)
@@ -37,7 +37,7 @@ def build_block_angular_matrices(
     Decision vector x in {0,1}^{K * N_per_agent * P} flattened in C-order (k, i, p).
     Constraints:
     1. Global coupling (m_global rows): sum_k D_k x_k <= d
-    2. Local wave capacities (K * m_local rows): A_k x_k <= b_k
+    2. Local capacities (K * m_local rows): A_k x_k <= b_k
     3. Request assignment (K * N_per_agent rows): sum_p x_{k,i,p} = 1
     """
     K = instance.K
@@ -64,7 +64,7 @@ def build_block_angular_matrices(
                 vals.append(instance.D[k, r, nz_i, nz_p])
 
     offset_local = m_global
-    # 2. Local wave capacity rows: offset_local .. offset_local + K * m_local - 1
+    # 2. Local capacity rows: offset_local .. offset_local + K * m_local - 1
     for k in range(K):
         for w in range(m_local):
             row_id = offset_local + k * m_local + w
@@ -106,7 +106,7 @@ def build_block_angular_matrices(
     return c_flat, A_csc, lb, ub
 
 
-def solve_lp_relaxation(instance: CoupledRoutingInstance) -> Dict[str, object]:
+def solve_lp_relaxation(instance: AllocationInstance) -> Dict[str, object]:
     """
     LP relaxation of (1)-(5) with HiGHS. Returns the LP bound, the coupling duals
     lambda_LP >= 0 (shape m), the fractional solution x_LP (K, N, P) and the solve
@@ -137,12 +137,12 @@ def solve_lp_relaxation(instance: CoupledRoutingInstance) -> Dict[str, object]:
     return out
 
 
-def lp_round_start(instance: CoupledRoutingInstance) -> Tuple[np.ndarray, float, float]:
+def lp_round_start(instance: AllocationInstance) -> Tuple[np.ndarray, float, float]:
     """
     LP-Round: solve the LP relaxation, then round greedily. Candidate assignments
     (k, i, p >= 1) with x_LP > 0 are taken in decreasing order of reduced-cost saving
     c_{k,i,0} - (c_{k,i,p} + lambda_LP^T D_{k,i,p}) and accepted if request (k, i) is
-    still on p = 0 and the hub (d) and wave (b_k) capacities allow it. One local
+    still on p = 0 and the shared (d) and local (b_k) capacities allow it. One local
     upgrade pass then gives every request still on p = 0 its cheapest feasible
     pattern, in decreasing order of raw saving.
 

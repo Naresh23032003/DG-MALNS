@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this code or data, please cite the manuscript below."
+title: "PC-MALNS: portfolio conflict resolution in concurrent multi-agent large neighborhood search (code and data)"
+authors:
+  - family-names: "R"
+    given-names: "Naresh"
+    orcid: "https://orcid.org/0009-0000-0735-2066"
+    affiliation: "Birla Institute of Technology and Science, Pilani (BITS Pilani)"
+license: MIT
+repository-code: "https://github.com/Naresh23032003/PC-MALNS"
+version: "3.0.0"
+date-released: "2026-11-14"
+preferred-citation:
+  type: unpublished
+  title: "Portfolio Conflict Resolution in Concurrent Multi-Agent Large Neighborhood Search for Coupled Multiple-Choice Allocation"
+  authors:
+    - family-names: "R"
+      given-names: "Naresh"
+  year: 2026
+  notes: "Manuscript under review"

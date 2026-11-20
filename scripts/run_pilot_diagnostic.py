@@ -102,7 +102,7 @@ def stage_a(ref):
         for init in ("direct", "booking", "lp_round"):
             for max_net in (3, None):
                 for M in (1, 5):
-                    cfg = method_configs(init_mode=init, max_net=max_net, inner_iters=M)["MC-CRIP"]
+                    cfg = method_configs(init_mode=init, max_net=max_net, inner_iters=M)["PC-MALNS [MC-CRIP]"]
                     cfg.name = f"MC-CRIP[{init},net={max_net},M={M}]"
                     cfg.time_budget_s, cfg.budget_clock, cfg.counterfactual = budget, "cpu", True
                     r = run_engine(inst, cfg, lb, seed=inst.seed)
@@ -140,7 +140,7 @@ def stage_c(ref, init, max_net, M, W=4):
     for scale, budget, inst in instances():
         lb = float(ref.loc[inst.name, "lower_bound"])
         for wall_budget in (budget / 2.0, budget):
-            cfg = method_configs(init_mode=init, max_net=max_net, inner_iters=M)["MC-CRIP"]
+            cfg = method_configs(init_mode=init, max_net=max_net, inner_iters=M)["PC-MALNS [MC-CRIP]"]
             cfg.time_budget_s, cfg.budget_clock = wall_budget, "wall"
             r = run_engine(inst, cfg, lb, seed=inst.seed, pool=pool)
             rows.append(res_row(scale, inst, r, dict(wall_budget_s=wall_budget, pool_startup_s=pool.startup_s)))

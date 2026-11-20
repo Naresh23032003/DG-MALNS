@@ -1,0 +1,2 @@
+family,reference,method,n,ref_mean,method_mean,diff,t_lo,t_hi,boot_lo,boot_hi,wins,ties,losses,p,p_holm
+restart,PC-MALNS [Greedy-Efficiency],PC-MALNS [Greedy-Efficiency] + restarts,60,1.467796137761457,1.4776340284176264,-0.009837890656169168,-0.022343098481450413,0.002667317169112079,-0.021208865393279288,0.00355207474501256,51,3,6,1.561485657664008e-06,1.561485657664008e-06

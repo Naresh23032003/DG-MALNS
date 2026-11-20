@@ -6,7 +6,7 @@ separately). Each run first ships its instance to every process ("load", charged
 the run's wall-clock time); process w owns agents k with k % W == w and keeps their
 incumbents x_k and current portfolios locally. Per epoch, the main process sends one message per process
 (the previous epoch's selected levels of its agents, residual slack s^{(t)}, quotas,
-prices and scalars) and receives the cost and hub-usage changes of every level
+prices and scalars) and receives the cost and shared-usage changes of every level
 (delta_c: L+1 floats, raw_dD: m x (L+1) floats per agent) plus the worker times.
 Pattern vectors never cross process boundaries during the search; they are fetched
 once at the end. The worker step and random streams are the same as in serial runs,
@@ -38,7 +38,7 @@ def _proc(conn, w: int, W: int):
             port = {}
             conn.send(True)
         elif kind == "step":
-            _, prev_sel, t, s_t, q_cols, duals, rho_t, seed, rep, L, max_net, M = msg
+            _, prev_sel, t, s_t, q_cols, duals, rho_t, seed, rep, L, max_net, M, levels = msg
             if prev_sel is not None:
                 for j, k in enumerate(agents):
                     if prev_sel[j] >= 0:
@@ -46,7 +46,7 @@ def _proc(conn, w: int, W: int):
             outs = []
             for j, k in enumerate(agents):
                 p, dc, dD, tau = worker_step(instance, k, inc[k], s_t, q_cols[:, j], seed, t, L,
-                                             duals, rho_t, rep, max_net, M)
+                                             duals, rho_t, rep, max_net, M, levels)
                 port[k] = p
                 outs.append((dc, dD, tau))
             conn.send(outs)
@@ -96,12 +96,13 @@ class AgentPool:
         for c in self.conns:
             c.recv()
 
-    def step(self, prev_sel, t, s_t, q_all, duals, rho_t, seed, rep, L, max_net, M, q_override=None):
+    def step(self, prev_sel, t, s_t, q_all, duals, rho_t, seed, rep, L, max_net, M, q_override=None,
+             levels=None):
         for w, c in enumerate(self.conns):
             ks = self.owned[w]
             ps = None if prev_sel is None else prev_sel[ks]
             q_cols = q_all[:, ks] if q_override is None else q_override[:, ks]
-            c.send(("step", ps, t, s_t, q_cols, duals, rho_t, seed, rep, L, max_net, M))
+            c.send(("step", ps, t, s_t, q_cols, duals, rho_t, seed, rep, L, max_net, M, levels))
         outs = [None] * self.K
         for w, c in enumerate(self.conns):
             for k, o in zip(self.owned[w], c.recv()):

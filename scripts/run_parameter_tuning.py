@@ -73,7 +73,7 @@ def main():
         for factor, s in settings():
             set_params(s["destroy"], s["noise"])
             for rep in range(REPS):
-                cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=s["M"])["MC-CRIP"]
+                cfg = method_configs(init_mode="lp_round", max_net=None, inner_iters=s["M"])["PC-MALNS [MC-CRIP]"]
                 cfg.name = "PC-MALNS [MC-CRIP]"
                 cfg.rho_init = s["rho0"]
                 cfg.time_budget_s, cfg.budget_clock = BUDGET, "cpu"

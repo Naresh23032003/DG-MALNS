@@ -1,0 +1,15 @@
+\begin{table}[!htb]
+\centering
+\caption{Fresh validation on 60 new instances (seeds 201--210, all six scales, $J = 6$, $\eta = 1.25$; work protocol, 5 runs each), declared before the runs (\texttt{results/validation\_plan.md}). Gap to the LP bound (\%). Diff $=$ PC-MALNS [Greedy-Efficiency] $-$ method; $p$: exact Wilcoxon (primary test: against PC-MALNS [MC-CRIP]); $p_{\text{Holm}}$ over the two tests.}
+\label{tab:validation}
+\scriptsize
+\begin{tabular}{@{}lrrrrrrrrrrr@{}}
+\toprule
+Method & Small & Medium & Large & X-Large & XXL & XXXL & All & Diff & W/T/L & $p$ & $p_{\text{Holm}}$ \\
+\midrule
+\textbf{PC-MALNS [Greedy-Efficiency]} & 3.463 & 2.391 & 1.836 & 1.556 & 0.910 & 0.764 & 1.820 &  &  &  &  \\
+PC-MALNS [MC-CRIP] & 3.405 & 2.407 & 1.896 & 1.609 & 0.946 & 0.785 & 1.841 & $-$0.021 & 47/0/13 & 0.0004 & 0.0008 \\
+PC-MALNS [Quota-Surplus] & 3.437 & 2.429 & 1.872 & 1.587 & 0.945 & 0.787 & 1.843 & $-$0.023 & 45/0/15 & 0.0007 & 0.0008 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,31 @@
+\begin{table}[!htb]
+\centering
+\caption{Source of the lower bound LB of every test instance (seeds 101 to 110). L: LP bound; a: dual bound of a HiGHS 1.8.0 reference run of the preliminary version; b: dual bound of the HiGHS 1.16.0 reference run; c: dual bound of another HiGHS 1.16.0 run on the instance; $^{*}$: some run proved optimality (none did). LB is the largest of these bounds; all values are in \texttt{results/raw/lower\_bounds.csv}.}
+\label{tab:lb}
+\scriptsize
+\begin{tabular}{@{}lcccccccccc@{}}
+\toprule
+Instances & 101 & 102 & 103 & 104 & 105 & 106 & 107 & 108 & 109 & 110 \\
+\midrule
+Main, Small & b & b & b & b & b & b & b & b & b & b \\
+Main, Medium & b & b & b & b & b & b & b & b & b & b \\
+Main, Large & b & b & b & b & b & b & b & b & b & b \\
+Main, X-Large & b & b & b & b & b & b & b & b & b & b \\
+Main, XXL & b & b & b & b & b & b & b & b & b & b \\
+Main, XXXL & b & b & b & b & b & b & b & b & b & b \\
+Rich, Medium, $J = 20$ & b & b & b & b & b & b & b & b & b & b \\
+Rich, Large, $J = 20$ & b & b & b & b & b & b & b & b & b & b \\
+Rich, X-Large, $J = 20$ & b & b & c & b & b & b & b & c & b & b \\
+Rich, XXL, $J = 20$ & b & b & b & b & b & b & b & b & b & b \\
+Rich, Medium, $J = 40$ & b & b & b & b & b & b & c & b & b & b \\
+Rich, Large, $J = 40$ & b & b & b & b & b & b & b & b & b & b \\
+Rich, X-Large, $J = 40$ & b & b & b & b & b & b & b & b & b & b \\
+Rich, XXL, $J = 40$ & b & b & b & b & b & b & b & b & b & b \\
+Sweep, Large, $\eta = 0.85$ & b & b & b & b & b & b & b & b & b & b \\
+Sweep, Large, $\eta = 1.05$ & b & b & b & b & b & b & b & b & b & b \\
+Sweep, Large, $\eta = 1.45$ & b & b & b & b & b & b & b & b & b & b \\
+Pair, Medium & b & b & b & b & b & b & b & b & b & b \\
+Pair, Large & b & b & b & b & b & b & b & b & b & b \\
+\bottomrule
+\end{tabular}
+\end{table}

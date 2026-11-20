@@ -1,5 +1,5 @@
 """
-Standard MMKP benchmark instances as RPA-SH instances (m_local = 0).
+Standard MMKP benchmark instances as MCA-SC instances (m_local = 0).
 
 Source: classical instances I07-I13 (Khan et al., 2002) and INST01-INST20
 (Hifi et al., 2004/2006), as distributed by Chen & Hao (2014),
@@ -10,7 +10,7 @@ File format: "n l m", the m capacities, then for every group g its index followe
 l lines "profit w_1 ... w_m". MMKP: choose exactly one item per group, maximize total
 profit subject to sum of weights <= capacity on every resource.
 
-Mapping to RPA-SH (minimization, every request needs a zero-usage pattern p = 0):
+Mapping to MCA-SC (minimization, every request needs a zero-usage pattern p = 0):
   - groups -> requests, distributed over K agents in contiguous blocks; the last agent
     is padded with dummy requests (all patterns cost 0, use 0) so that every agent has
     N_per_agent = ceil(n / K) requests;
@@ -28,7 +28,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-from src.instance_generator import CoupledRoutingInstance
+from src.instance_generator import AllocationInstance
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "mmkp"
 NAMES = [f"I{j:02d}" for j in range(7, 14)] + [f"INST{j:02d}" for j in range(1, 21)]
@@ -71,7 +71,7 @@ def read_certificate(name: str, raw: Dict) -> Tuple[float, np.ndarray]:
     return bkv, j
 
 
-def to_instance(raw: Dict, K: int) -> CoupledRoutingInstance:
+def to_instance(raw: Dict, K: int) -> AllocationInstance:
     n, l, m = raw["n"], raw["l"], raw["m"]
     N = -(-n // K)
     P = l + 1
@@ -84,7 +84,7 @@ def to_instance(raw: Dict, K: int) -> CoupledRoutingInstance:
         c[k, i, 0] = pen
         c[k, i, 1:] = pmax - raw["profit"][g]
         D[k, :, i, 1:] = raw["w"][g].T
-    inst = CoupledRoutingInstance(
+    inst = AllocationInstance(
         name=f"MMKP_{raw['name']}_K{K}", scale="MMKP", K=K, N_per_agent=N, N_total=K * N, P=P,
         m_global=m, m_local=0, tightness=float("nan"), seed=0, c=c, D=D,
         A=np.zeros((K, 0, N, P)), d=raw["cap"].copy(), b=np.zeros((K, 0)),
@@ -95,8 +95,8 @@ def to_instance(raw: Dict, K: int) -> CoupledRoutingInstance:
     return inst
 
 
-def mmkp_profit(inst: CoupledRoutingInstance, patterns: np.ndarray) -> Tuple[float, bool]:
-    """(MMKP profit, MMKP-feasible) of an RPA-SH solution of a converted instance."""
+def mmkp_profit(inst: AllocationInstance, patterns: np.ndarray) -> Tuple[float, bool]:
+    """(MMKP profit, MMKP-feasible) of an MCA-SC solution of a converted instance."""
     n, N = inst.mmkp_n, inst.N_per_agent
     flat = patterns.reshape(-1)[:n]
     if np.any(flat == 0):
@@ -106,7 +106,7 @@ def mmkp_profit(inst: CoupledRoutingInstance, patterns: np.ndarray) -> Tuple[flo
     return n * inst.mmkp_pmax - cost, True
 
 
-def mmkp_feasibility_repair(inst: CoupledRoutingInstance, patterns: np.ndarray) -> np.ndarray:
+def mmkp_feasibility_repair(inst: AllocationInstance, patterns: np.ndarray) -> np.ndarray:
     """Start for MMKP instances (every group must receive an item; p = 0 only marks an
     unassigned group). Classic two-phase MMKP construction (Khan et al., 2002, HEU
     phases 1-2): every group takes its item with the smallest normalized weight

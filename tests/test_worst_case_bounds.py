@@ -13,7 +13,7 @@ from scipy import stats as sps
 
 from src.commit_rules import (apply_rule, opt_rollback, opt_seqlock, greedy_gain, greedy_efficiency,
                               static_quota, selection_cost, selection_feasible, counterfactual_costs)
-from src.bcrm_solver import solve_mccrip_exact, solve_bcrm_greedy, LAST_SOLVE_INFO
+from src.barrier_solvers import solve_mccrip_exact, solve_quota_surplus, LAST_SOLVE_INFO
 from src.stats import paired_wilcoxon, holm, mean_ci
 
 
@@ -38,6 +38,12 @@ def portfolio(levels, s):
             dD[:, k, l] = d
     s = np.asarray(s, dtype=float)
     q = np.tile(s[:, None] / K, (1, K))
+    # every construction must be a valid portfolio: level l respects its cap
+    # (l = 0: no extra usage; l = 1: q_k; l = 2: (q_k + s) / 2; l = 3: s)
+    caps = [np.zeros_like(q), q, 0.5 * (q + s[:, None]), np.tile(s[:, None], (1, K))]
+    for l in range(min(nl, 4)):
+        assert np.all(dD[:, :, l] <= caps[l] + 1e-12), f"level {l} exceeds its cap"
+    assert np.all(dc <= 0.0)
     return dc, dD, s, q
 
 
@@ -51,7 +57,7 @@ def test_static_quota_ratio_unbounded():
     """Static-Quota gains 0 while MC-CRIP gains 10 (donor quota of agent 1 is lent)."""
     z = (0.0, [0.0])
     mv = (-10.0, [1.0])
-    dc, dD, s, q = portfolio([[z, z, mv, mv], [z, z, z, z]], [1.0])
+    dc, dD, s, q = portfolio([[z, z, z, mv], [z, z, z, z]], [1.0])
     assert mccrip_gain(dc, dD, s, q) == pytest.approx(10.0)
     assert -selection_cost(dc, static_quota(dc, dD, s)) == pytest.approx(0.0)
 
@@ -61,14 +67,14 @@ def test_opt_rollback_ratio_k_minus_1(K):
     """K equal moves, slack for K - 1: Opt-Rollback commits one, MC-CRIP K - 1."""
     z = (0.0, [0.0])
     mv = (-1.0, [1.0])
-    dc, dD, s, q = portfolio([[z, z, mv, mv]] * K, [K - 1.0])
+    dc, dD, s, q = portfolio([[z, z, z, mv]] * K, [K - 1.0])
     _, expected = opt_rollback(dc, dD, s, np.random.default_rng(0), expected=True)
     assert mccrip_gain(dc, dD, s, q) / -expected == pytest.approx(K - 1.0)
 
 
 @pytest.mark.parametrize("K", [4, 8, 16])
 def test_opt_seqlock_ratio_omega_k(K):
-    """Agent 0 arrives first with a hub-hogging cheapest level: ratio K / (1 + eps)."""
+    """Agent 0 arrives first with a capacity-hogging cheapest level: ratio K / (1 + eps)."""
     eps = 0.01
     z = (0.0, [0.0])
     small = (-1.0, [1.0])
@@ -80,30 +86,32 @@ def test_opt_seqlock_ratio_omega_k(K):
     assert mccrip_gain(dc, dD, s, q) / seq == pytest.approx(K / (1.0 + eps))
 
 
-def test_greedy_gain_ratio_two_minus_eps():
-    """One hub: a 2-unit move of gain 1 + eps blocks two 1-unit moves of gain 1."""
+@pytest.mark.parametrize("K", [3, 6, 10])
+def test_greedy_gain_ratio_one_hub_k_minus_1(K):
+    """One shared resource with s = K - 1: a move of gain 1 + eps and usage K - 1 blocks K - 1 unit
+    moves of gain 1: ratio (K - 1) / (1 + eps)."""
     eps = 0.01
     z = (0.0, [0.0])
-    big = (-(1.0 + eps), [2.0])
+    big = (-(1.0 + eps), [K - 1.0])
     one = (-1.0, [1.0])
-    dc, dD, s, q = portfolio([[z, z, big, big], [z, z, one, one], [z, z, one, one]], [2.0])
+    dc, dD, s, q = portfolio([[z, z, z, big]] + [[z, z, z, one]] * (K - 1), [K - 1.0])
     g = -selection_cost(dc, greedy_gain(dc, dD, s))
     assert g == pytest.approx(1.0 + eps)
-    assert mccrip_gain(dc, dD, s, q) / g == pytest.approx(2.0 / (1.0 + eps))
+    assert mccrip_gain(dc, dD, s, q) / g == pytest.approx((K - 1.0) / (1.0 + eps))
 
 
 @pytest.mark.parametrize("m", [3, 5, 8])
 def test_greedy_gain_ratio_omega_m(m):
-    """m hubs: a move using every hub (gain 1 + eps) blocks m single-hub moves of gain 1."""
+    """m shared resources: a move using every resource (gain 1 + eps) blocks m single-resource moves of gain 1."""
     eps = 0.01
     zv = [0.0] * m
     z = (0.0, zv)
     hog = (-(1.0 + eps), [1.0] * m)
-    levels = [[z, z, hog, hog]]
+    levels = [[z, z, z, hog]]
     for j in range(m):
         e = [0.0] * m
         e[j] = 1.0
-        levels.append([z, z, (-1.0, e), (-1.0, e)])
+        levels.append([z, z, z, (-1.0, e)])
     dc, dD, s, q = portfolio(levels, [1.0] * m)
     g = -selection_cost(dc, greedy_gain(dc, dD, s))
     assert g == pytest.approx(1.0 + eps)
@@ -135,7 +143,7 @@ def test_counterfactual_mccrip_is_minimal_and_all_rules_feasible():
         cf = counterfactual_costs(dc, dD, s, q, np.zeros(len(s)), 0.0, np.random.default_rng(1))
         for rule, v in cf.items():
             assert cf["MC-CRIP"] <= v + 1e-9, rule
-        for rule in ("BCRM-Greedy", "Greedy-Gain", "Greedy-Efficiency", "Static-Quota", "Opt-SeqLock",
+        for rule in ("Quota-Surplus", "Greedy-Gain", "Greedy-Efficiency", "Static-Quota", "Opt-SeqLock",
                      "Opt-Rollback", "MC-CRIP"):
             sel = apply_rule(rule, dc, dD, s, q, np.random.default_rng(2))
             assert selection_feasible(dD, s, sel), rule
@@ -149,7 +157,7 @@ def test_mccrip_time_limit_fallback_never_worse_than_greedy_or_quota_safe():
         sel, _ = solve_mccrip_exact(dc, dslack, time_limit_s=1e-6, max_enum_states=1)
         assert LAST_SOLVE_INFO["used_highs"]
         assert np.all(np.sum(dslack[:, np.arange(14), sel], axis=1) <= 1e-6)
-        g, _ = solve_bcrm_greedy(dc, dslack, np.zeros(len(s)), 0.0)
+        g, _ = solve_quota_surplus(dc, dslack, np.zeros(len(s)), 0.0)
         cost = float(np.sum(dc[np.arange(14), sel]))
         assert cost <= float(np.sum(dc[np.arange(14), g])) + 1e-9
         assert cost <= float(np.sum(dc[:, 1])) + 1e-9
@@ -176,13 +184,13 @@ def test_holm_and_ci():
 
 @pytest.mark.parametrize("C", [10.0, 100.0, 1000.0])
 def test_greedy_efficiency_ratio_unbounded(C):
-    """One hub with slack C: a tiny move of high efficiency (gain 2 delta, usage delta)
+    """One shared resource with slack C: a tiny move of high efficiency (gain 2 delta, usage delta)
     blocks a large move (gain C, usage C). Greedy-Efficiency gains 2 delta, MC-CRIP C."""
     delta = 1.0
     z = (0.0, [0.0])
     small = (-2.0 * delta, [delta])
     big = (-C, [C])
-    dc, dD, s, q = portfolio([[z, z, small, small], [z, z, big, big]], [C])
+    dc, dD, s, q = portfolio([[z, z, small, small], [z, z, z, big]], [C])
     g = -selection_cost(dc, greedy_efficiency(dc, dD, s))
     assert g == pytest.approx(2.0 * delta)
     assert mccrip_gain(dc, dD, s, q) / g == pytest.approx(C / (2.0 * delta))

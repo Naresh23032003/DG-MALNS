@@ -1,5 +1,5 @@
 """
-Quota-Surplus Greedy Upgrade (BCRM-Greedy) and Exact Multi-Choice
+Quota-Surplus Greedy Upgrade (Quota-Surplus) and Exact Multi-Choice
 Conflict-Resolution Integer Programming (MC-CRIP) Solver via HiGHS.
 
 Implements Section 5.3 of the mathematical specification:
@@ -9,7 +9,7 @@ Implements Section 5.3 of the mathematical specification:
    enumeration over all agents and levels l in {0, ..., L} (after dominance pruning)
    when at most 4,096 level combinations remain, and scipy.optimize.milp (HiGHS,
    mip_rel_gap = 0) otherwise.
-3. Rollback-free single-pass Quota-Surplus Greedy Upgrade (BCRM-Greedy) with
+3. Rollback-free single-pass Quota-Surplus Greedy Upgrade (Quota-Surplus) with
    Shadow Efficiency Ratio sorting.
 """
 
@@ -161,8 +161,8 @@ def solve_mccrip_exact(
         selected_levels = cands[0][1]
     else:
         # Unified time-limit fallback: the best feasible selection among the HiGHS
-        # incumbent, BCRM-Greedy (no prices) and the all-quota-safe selection z_{k,1} = 1.
-        greedy_sel, _ = solve_bcrm_greedy(delta_c, delta_slack, np.zeros(m_global), 0.0)
+        # incumbent, Quota-Surplus (no prices) and the all-quota-safe selection z_{k,1} = 1.
+        greedy_sel, _ = solve_quota_surplus(delta_c, delta_slack, np.zeros(m_global), 0.0)
         if feasible(greedy_sel):
             cands.append(("bcrm_greedy", greedy_sel))
         qs = np.ones(K, dtype=np.int64)
@@ -176,14 +176,14 @@ def solve_mccrip_exact(
     return selected_levels, elapsed_ms
 
 
-def solve_bcrm_greedy(
+def solve_quota_surplus(
     delta_c: np.ndarray,
     delta_slack: np.ndarray,
     dual_prices: np.ndarray,
     rho_t: float,
 ) -> Tuple[np.ndarray, float]:
     """
-    Quota-Surplus Greedy Upgrade (BCRM-Greedy), a rollback-free single pass,
+    Quota-Surplus Greedy Upgrade (Quota-Surplus), a rollback-free single pass,
     as specified in Section 5.3 (Equation 14):
 
     1. Zero-Conflict Fast Path: return l_k^* = argmin_l Delta c_{k,l} if that selection

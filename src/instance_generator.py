@@ -1,6 +1,7 @@
 """
-Block-Angular Coupled Multi-Depot Pickup and Delivery / Routing Problem
-with Shared Hubs (RPA-SH) Instance Generator.
+Seeded generator of MCA-SC instances: block-angular multiple-choice allocation with
+shared capacities. The instances are synthetic random data; they are not derived from
+any routing benchmark and contain no routing, sequencing or time-window structure.
 
 Implements parametric instance synthesis rules and initial baseline solution
 construction as specified in Section 3 and Section 4 of the mathematical specification.
@@ -10,32 +11,32 @@ from dataclasses import dataclass
 from typing import Optional
 import numpy as np
 
-# Hub utilization targeted by the uncoordinated initial booking x^{(0)}
+# Shared-capacity utilization targeted by the uncoordinated initial booking x^{(0)}
 INITIAL_HUB_UTILIZATION = 0.92
 
 
 @dataclass
-class CoupledRoutingInstance:
+class AllocationInstance:
     """
     Represents a block-angular coupled combinatorial optimization instance
-    across K concurrent agents (depots/subgraphs).
+    across K concurrent agents (blocks).
 
     Attributes:
         name: Instance identifier string.
-        scale: Scale label ('Small', 'Medium', 'Large', 'X-Large').
-        K: Number of concurrent agents (depots).
-        N_per_agent: Number of customer requests per agent.
-        N_total: Total number of customer requests (K * N_per_agent).
-        P: Number of candidate route-schedule patterns per request.
-        m_global: Number of global coupling constraints (shared transfer hubs).
-        m_local: Number of local depot wave capacity constraints per agent.
+        scale: Scale label ('Small', ..., 'XXXL').
+        K: Number of agents (blocks).
+        N_per_agent: Number of requests per agent.
+        N_total: Total number of requests (K * N_per_agent).
+        P: Number of candidate patterns per request (J in the manuscript).
+        m_global: Number of shared capacities (coupling rows).
+        m_local: Number of local capacity rows per agent.
         tightness: Coupling tightness ratio eta_tight.
         seed: Random number generator seed.
         c: Cost array of shape (K, N_per_agent, P).
         D: Global resource consumption array of shape (K, m_global, N_per_agent, P).
-        A: Local wave consumption array of shape (K, m_local, N_per_agent, P).
-        d: Global coupling capacity vector of shape (m_global,).
-        b: Local depot wave capacity matrix of shape (K, m_local).
+        A: Local resource consumption array of shape (K, m_local, N_per_agent, P).
+        d: Shared capacity vector of shape (m_global,).
+        b: Local capacity matrix of shape (K, m_local).
         initial_patterns: Starting feasible pattern assignment of shape (K, N_per_agent)
                           with integer entries in {0, ..., P-1}.
     """
@@ -85,26 +86,26 @@ def generate_instance(
     tightness: float = 1.25,
     seed: int = 101,
     scale: str = "Custom",
-) -> CoupledRoutingInstance:
+) -> AllocationInstance:
     """
-    Synthesize a parametric block-angular RPA-SH instance using a seeded
-    NumPy generator (np.random.default_rng(seed)) following Section 3.2:
+    Synthesize a parametric block-angular MCA-SC instance using a seeded
+    NumPy generator (np.random.default_rng(seed)):
 
-    1. Pattern p = 0 (Uncoupled Fallback Dispatch):
+    1. Pattern p = 0 (uses no shared capacity):
        For each (k, i), draw standalone cost c_{k,i,0} ~ Uniform(85.0, 140.0).
        Set D_{k,r,i,0} = 0 for all r and A_{k,w,i,0} = 0 for all w.
-    2. Patterns p in {1, ..., P-1} (Consolidated Shared-Hub Routes):
-       - Regional depot heterogeneity: a seeded random half of the depots
-         (ceil(K/2)) are high-utility depots with gamma_{k,i,p} ~ Uniform(0.28, 0.52);
-         the remaining depots are low-utility depots with
+    2. Patterns p in {1, ..., P-1} (use shared capacity):
+       - Agent heterogeneity: a seeded random half of the agents
+         (ceil(K/2)) are high-utility agents with gamma_{k,i,p} ~ Uniform(0.28, 0.52);
+         the remaining agents are low-utility agents with
          gamma_{k,i,p} ~ Uniform(0.62, 0.85). Set c_{k,i,p} = round(c_{k,i,0} * gamma_{k,i,p}, 2).
-       - Heterogeneous hub demand profiles: each depot k draws a hub preference
+       - Heterogeneous shared-resource profiles: each agent k draws a preference
          vector pi_k ~ Dirichlet(1.5 * 1_m); the 2 active global coupling
          resources r of pattern p are sampled without replacement with
          probabilities pi_k; for each active r, set:
          D_{k,r,i,p} = round(u_{k,r,i,p} * (1.0 + 0.8*(1.0 - gamma_{k,i,p})), 2),
          where u_{k,r,i,p} ~ Uniform(1.0, 3.5).
-       - Select 1 active local wave constraint w in {0, ..., m_local-1}
+       - Select 1 active local capacity row w in {0, ..., m_local-1}
          uniformly and draw A_{k,w,i,p} ~ Uniform(1.0, 2.5) (rounded to 2 decimals).
     3. Local and Global Capacity Calibration via Tightness Ratio eta_tight:
        Let p^*_{k,i} = argmin_{p} c_{k,i,p}.
@@ -112,9 +113,10 @@ def generate_instance(
        U^{local}_{k,w} = sum_{i} A_{k,w,i,p^*_{k,i}}
        b_{k,w} = max(4.0, round(0.82 * U^{local}_{k,w}, 2))
        d_r = max(8.0, round(U^{global}_r / tightness, 2))
-    4. Starting Feasible Solution x^{(0)} (uncoordinated regional booking):
-       depots book hub capacity one after another (random request order, cheapest
-       feasible pattern) up to 92% of every hub capacity d_r, so s^{(0)} > 0 is small.
+    4. Starting Feasible Solution x^{(0)} (uncoordinated booking, not used by the
+       experiments, which start from LP-Round or the direct start): agents book shared
+       capacity one after another (random request order, cheapest feasible pattern) up
+       to 92% of every capacity d_r, so s^{(0)} > 0 is small.
     """
     rng = np.random.default_rng(seed)
     N_total = K * N_per_agent
@@ -123,17 +125,17 @@ def generate_instance(
     D = np.zeros((K, m_global, N_per_agent, P), dtype=np.float64)
     A = np.zeros((K, m_local, N_per_agent, P), dtype=np.float64)
 
-    # 1. Pattern p = 0 (Uncoupled Fallback Dispatch)
+    # 1. Pattern p = 0 (uses no shared capacity)
     c[:, :, 0] = np.round(rng.uniform(85.0, 140.0, size=(K, N_per_agent)), 2)
 
-    # 2. Patterns p in {1, ..., P-1} (Consolidated Shared-Hub Routes)
-    # Regional depot heterogeneity: high-utility depots (close to consolidation
-    # hubs) obtain larger per-request savings than low-utility depots.
+    # 2. Patterns p in {1, ..., P-1} (use shared capacity)
+    # Agent heterogeneity: high-utility agents obtain larger per-request savings
+    # than low-utility agents.
     n_high = int(np.ceil(K / 2.0))
     high_utility = np.zeros(K, dtype=bool)
     high_utility[rng.permutation(K)[:n_high]] = True
     gamma_range = np.where(high_utility[:, None], [[0.28, 0.52]], [[0.62, 0.85]])
-    # Heterogeneous regional hub demand profiles
+    # Heterogeneous shared-resource profiles
     hub_pref = rng.dirichlet(1.5 * np.ones(m_global), size=K)  # (K, m_global)
 
     for k in range(K):
@@ -144,7 +146,7 @@ def generate_instance(
                 gamma = rng.uniform(g_lo, g_hi)
                 c[k, i, p] = np.round(c0 * gamma, 2)
 
-                # Select 2 active global coupling resources by the depot's hub profile
+                # Select 2 active global coupling resources by the agent's resource profile
                 active_r = rng.choice(
                     m_global, size=min(2, m_global), replace=False, p=hub_pref[k]
                 )
@@ -153,7 +155,7 @@ def generate_instance(
                     u_vals * (1.0 + 0.8 * (1.0 - gamma)), 2
                 )
 
-                # Select 1 active local wave constraint uniformly
+                # Select 1 active local capacity row uniformly
                 active_w = rng.integers(0, m_local)
                 A[k, active_w, i, p] = np.round(rng.uniform(1.0, 2.5), 2)
 
@@ -176,10 +178,10 @@ def generate_instance(
     d = np.maximum(8.0, np.round(U_global / tightness, 2))
 
     # 4. Starting feasible solution x^{(0)}: uncoordinated regional booking.
-    # Depots k = 0, ..., K-1 book hub capacity one after another; each depot takes
+    # Agents k = 0, ..., K-1 book shared capacity one after another; each agent takes
     # its requests in random order and assigns each to its cheapest pattern that
-    # keeps global hub usage <= INITIAL_HUB_UTILIZATION * d and local wave usage
-    # <= b_k (otherwise p = 0). Early depots therefore hold hub capacity with
+    # keeps shared usage <= INITIAL_HUB_UTILIZATION * d and local usage
+    # <= b_k (otherwise p = 0). Early agents therefore hold shared capacity with
     # requests that need not be the most valuable ones, and little residual slack
     # s^{(0)} remains.
     initial_patterns = np.zeros((K, N_per_agent), dtype=np.int64)
@@ -199,8 +201,8 @@ def generate_instance(
                     wave_use += A[k, :, i, p_cand]
                     break
 
-    name = f"RPA_SH_K{K}_N{N_total}_P{P}_eta{tightness:.2f}_s{seed}"
-    return CoupledRoutingInstance(
+    name = f"MCA_SC_K{K}_N{N_total}_P{P}_eta{tightness:.2f}_s{seed}"
+    return AllocationInstance(
         name=name,
         scale=scale,
         K=K,
